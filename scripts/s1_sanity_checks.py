@@ -102,6 +102,20 @@ def analyse_subject(path: Path, meta_dir: Path, seed: int) -> dict:
         for roi, val in out["noise_ceiling"].items():
             print(f"      {roi:<12} {val:5.1f}%")
 
+        # The strongest end-to-end check we have. Our reliability comes from the 3000
+        # trials we range-read and split ourselves; NSD's ncsnr was computed by the
+        # dataset authors over all 30000 trials with their own pipeline. If our trial
+        # labels, ROI masks, repeat grouping or byte offsets were wrong, these two
+        # per-vertex estimates could not agree.
+        a_all, b_all, _ = split_half(data, seed=seed)
+        mine = split_half_reliability(a_all, b_all)
+        theirs = nc / 100.0
+        ok = np.isfinite(mine) & np.isfinite(theirs)
+        agreement = float(np.corrcoef(mine[ok], theirs[ok])[0, 1])
+        out["ncsnr_agreement"] = agreement
+        out["ncsnr_agreement_n"] = int(ok.sum())
+        print(f"  cross-check vs NSD's own ncsnr: r = {agreement:.3f} over {ok.sum():,} vertices")
+
     out["_data"] = data
     out["_ncsnr"] = ncsnr
     return out
@@ -194,9 +208,15 @@ def figure_reliability(results: list[dict], fig_dir: Path) -> Path:
     return out
 
 
+MIN_NCSNR_AGREEMENT = 0.80
+
+
 def verdict(results: list[dict]) -> bool:
-    """State plainly whether the known-fact check passed, per subject."""
-    print("\n=== KNOWN-FACT CHECK: reliability(early) > reliability(ventral)? ===")
+    """State plainly whether the two gating checks passed, per subject."""
+    print("\n=== CHECK 1: reliability(early) > reliability(ventral)? ===")
+    print("  Early cortex tracks low-level image properties in a stimulus-locked way;")
+    print("  anterior ventral cortex is modulated by attention and memory, so repeats")
+    print("  agree less. Reversed ordering would mean a labelling bug.")
     passed = 0
     for res in results:
         rel = res["reliability"]
@@ -207,7 +227,24 @@ def verdict(results: list[dict]) -> bool:
         print(f"  {res['subject']}: early={rel['early']:+.3f}  ventral={rel['ventral']:+.3f}  "
               f"-> {'PASS' if ok else 'FAIL'}")
     print(f"  {passed}/{len(results)} subjects reproduce the expected ordering")
-    return passed == len(results)
+
+    print("\n=== CHECK 2: does our reliability agree with NSD's own ncsnr? ===")
+    print("  Independent estimates: ours from the trials we extracted and split, theirs")
+    print("  from the authors' pipeline over all 30000 trials. Disagreement would mean")
+    print("  our trial labels, ROI masks or byte offsets are wrong.")
+    agreed = 0
+    n_with = 0
+    for res in results:
+        if "ncsnr_agreement" not in res:
+            continue
+        n_with += 1
+        r = res["ncsnr_agreement"]
+        ok = r >= MIN_NCSNR_AGREEMENT
+        agreed += ok
+        print(f"  {res['subject']}: r={r:.3f} over {res['ncsnr_agreement_n']:,} vertices "
+              f"-> {'PASS' if ok else 'FAIL'} (threshold {MIN_NCSNR_AGREEMENT})")
+
+    return passed == len(results) and (n_with == 0 or agreed == n_with)
 
 
 def main() -> int:
