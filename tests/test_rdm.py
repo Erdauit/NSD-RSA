@@ -201,3 +201,29 @@ def test_rank_transform_spans_unit_interval(rng):
 def test_squareform_roundtrip(rng):
     rdm = compute_rdm(rng.normal(size=(12, 30)))
     assert np.allclose(squareform(squareform(rdm)), rdm)
+
+
+# --- numerical hygiene ---------------------------------------------------------
+
+
+def test_no_spurious_warnings_leak_to_callers(rng, recwarn):
+    """macOS/Accelerate raises bogus matmul warnings on finite inputs. They are silenced
+    inside compute_rdm so real runs stay readable — but only the matmul ones."""
+    compute_rdm(rng.normal(size=(60, 400)))
+    assert [w for w in recwarn if "matmul" in str(w.message)] == []
+
+
+def test_non_finite_result_raises_rather_than_propagating(monkeypatch, rng):
+    """The warning suppression must not be able to hide a genuine numerical failure."""
+    import nsd_rsa.rdm as rdm_mod
+
+    real_clip = np.clip
+
+    def poisoned(a, lo, hi, out=None):
+        result = real_clip(a, lo, hi, out=out)
+        result[0, 1] = np.nan
+        return result
+
+    monkeypatch.setattr(rdm_mod.np, "clip", poisoned)
+    with pytest.raises(FloatingPointError, match="non-finite"):
+        compute_rdm(rng.normal(size=(10, 20)), "correlation")

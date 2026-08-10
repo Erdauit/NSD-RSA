@@ -13,9 +13,27 @@ Conventions used throughout:
 
 from __future__ import annotations
 
+import contextlib
+import warnings
+
 import numpy as np
 from scipy.spatial.distance import squareform
 from scipy.stats import rankdata, spearmanr
+
+
+@contextlib.contextmanager
+def _quiet_matmul():
+    """Silence numpy's spurious matmul RuntimeWarnings on macOS/Accelerate.
+
+    On Apple Silicon the Accelerate BLAS backend raises divide-by-zero, overflow and
+    invalid warnings from plain matmul even for finite, well-scaled inputs. Verified
+    against scipy.spatial.distance.pdist on real NSD betas: results agree to 1e-14 and
+    are entirely finite. Callers still check the result explicitly, so a genuine
+    numerical failure is caught rather than hidden by this.
+    """
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=".*encountered in matmul", category=RuntimeWarning)
+        yield
 
 
 def _validate(patterns: np.ndarray) -> np.ndarray:
@@ -53,7 +71,8 @@ def compute_rdm(patterns: np.ndarray, metric: str = "correlation", condensed: bo
                 "correlation distance is undefined for it"
             )
         unit = centred / norms
-        sim = unit @ unit.T
+        with _quiet_matmul():
+            sim = unit @ unit.T
         np.clip(sim, -1.0, 1.0, out=sim)
         full = 1.0 - sim
     elif metric == "cosine":
@@ -61,14 +80,24 @@ def compute_rdm(patterns: np.ndarray, metric: str = "correlation", condensed: bo
         if (norms == 0).any():
             raise ValueError("zero-norm pattern; cosine distance undefined")
         unit = arr / norms
-        sim = np.clip(unit @ unit.T, -1.0, 1.0)
+        with _quiet_matmul():
+            sim = np.clip(unit @ unit.T, -1.0, 1.0)
         full = 1.0 - sim
     elif metric == "euclidean":
         sq = np.sum(arr**2, axis=1)
-        d2 = sq[:, None] + sq[None, :] - 2.0 * (arr @ arr.T)
+        with _quiet_matmul():
+            d2 = sq[:, None] + sq[None, :] - 2.0 * (arr @ arr.T)
         full = np.sqrt(np.maximum(d2, 0.0))
     else:
         raise ValueError(f"unknown metric: {metric!r}")
+
+    # The warning suppression above is narrow and deliberate, so verify the outcome
+    # rather than trusting it: a real numerical failure must still be loud.
+    if not np.isfinite(full).all():
+        raise FloatingPointError(
+            f"RDM contains non-finite values for metric {metric!r} — inputs were finite, "
+            "so this is a genuine numerical failure, not the known Accelerate warning"
+        )
 
     # Enforce exact symmetry and a zero diagonal; float error otherwise leaks into
     # squareform, which refuses matrices whose diagonal is not exactly zero.
