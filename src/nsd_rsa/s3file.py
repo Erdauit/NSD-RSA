@@ -17,11 +17,29 @@ import io
 class S3File(io.RawIOBase):
     """Minimal seekable reader over an S3 object, with a simple read-ahead cache."""
 
-    def __init__(self, client, bucket: str, key: str, block_size: int = 1 << 20):
+    def __init__(
+        self,
+        client,
+        bucket: str,
+        key: str,
+        block_size: int = 1 << 18,
+        passthrough: int = 1 << 17,
+    ):
+        """
+        block_size  — how much to read ahead when serving small reads (HDF5 metadata).
+        passthrough — reads at least this large bypass the cache entirely.
+
+        The two are separate for a reason. An NSD image is 541,875 bytes. With a single
+        1 MB threshold each image read pulled a full 1 MB block, transferring roughly
+        twice the payload — an extra ~500 MB across the 1000 images. Anything of
+        payload size goes straight to the wire; only HDF5's small metadata lookups,
+        which really do benefit from read-ahead on a high-latency link, are cached.
+        """
         self._client = client
         self._bucket = bucket
         self._key = key
         self._block = block_size
+        self._passthrough = passthrough
         self.size = client.head_object(Bucket=bucket, Key=key)["ContentLength"]
         self._pos = 0
         self._cache_start = -1
@@ -73,8 +91,8 @@ class S3File(io.RawIOBase):
             return b""
 
         # Large reads (an actual image) go straight through; caching them would just
-        # double memory for no reuse.
-        if size >= self._block:
+        # transfer padding and double memory for no reuse.
+        if size >= self._passthrough:
             data = self._fetch(self._pos, size)
             self._pos += len(data)
             return data
