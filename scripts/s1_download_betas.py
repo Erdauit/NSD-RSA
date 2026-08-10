@@ -134,12 +134,18 @@ def process_subject(subject: str, cfg: dict, paths: dict[str, Path], client) -> 
     sessions = np.unique(trials.session)
     t_start = time.time()
     bytes_done = 0
+    # Count only sessions we actually transfer: cached ones return instantly, and
+    # including them in the rate would make the ETA wildly optimistic on a resumed run.
+    downloaded = 0
     for i, sess in enumerate(sessions, 1):
         out = session_cache / f"session{sess:02d}.npy"
         frames = trials.frames_in_session(sess)
         if out.exists():
             print(f"  [{i:2d}/{len(sessions)}] session {sess:02d}: cached ({len(frames)} trials)")
             continue
+        remaining_sessions = sum(
+            1 for s in sessions[i - 1 :] if not (session_cache / f"session{s:02d}.npy").exists()
+        )
 
         t0 = time.time()
         # Session-level retry on top of the per-request retry inside nsd.with_retry:
@@ -156,10 +162,11 @@ def process_subject(subject: str, cfg: dict, paths: dict[str, Path], client) -> 
 
         moved = len(frames) * atlas.n_vertices * 4
         bytes_done += moved
+        downloaded += 1
         dt = time.time() - t0
         elapsed = time.time() - t_start
         rate = bytes_done / 1e6 / max(elapsed, 1e-9)
-        remaining = (len(sessions) - i) * (elapsed / i) / 60
+        remaining = (remaining_sessions - 1) * (elapsed / downloaded) / 60
         print(f"  [{i:2d}/{len(sessions)}] session {sess:02d}: {len(frames):3d} trials, "
               f"{moved/1e6:6.1f} MB in {dt:5.0f}s | {rate:.2f} MB/s | ~{remaining:.0f} min left")
 
