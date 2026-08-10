@@ -142,7 +142,16 @@ def process_subject(subject: str, cfg: dict, paths: dict[str, Path], client) -> 
             continue
 
         t0 = time.time()
-        data = download_session(subject, sess, frames, roi_idx_by_hemi, cfg, client, workers)
+        # Session-level retry on top of the per-request retry inside nsd.with_retry:
+        # a whole session can still fail if the link drops for longer than the inner
+        # backoff covers, and losing an hour of progress to one outage is unacceptable.
+        data = nsd.with_retry(
+            lambda s=sess, fr=frames: download_session(
+                subject, s, fr, roi_idx_by_hemi, cfg, client, workers
+            ),
+            attempts=4,
+            base_delay=10.0,
+        )
         np.save(out, data)
 
         moved = len(frames) * atlas.n_vertices * 4

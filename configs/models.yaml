@@ -1,0 +1,54 @@
+# S2 — model registry. Adding a model is one entry here; no code changes.
+#
+# The comparison is designed so that pairs differ in exactly one thing:
+#   dinov2_vitb14 vs vit_b16      -> same scale, different objective (self-sup vs labels)
+#   dinov2_vitb14 vs dinov2_vitl14 -> same objective, different capacity
+#   vit_b16       vs clip_vitb16  -> same architecture, image labels vs language
+#   resnet50                       -> the pre-transformer baseline everyone knows
+
+seed: 0
+device: auto          # auto | cpu | cuda | mps
+batch_size: 32
+dtype: float32
+
+paths:
+  stimuli: data/stimuli
+  cache: cache
+  figures: figures
+
+models:
+  - name: dinov2_vitb14
+    timm_name: vit_base_patch14_dinov2.lvd142m
+    kind: vit
+    supervision: self-supervised
+    note: "The hypothesis under test. Self-distillation, no labels, no language."
+
+  - name: dinov2_vitl14
+    timm_name: vit_large_patch14_dinov2.lvd142m
+    kind: vit
+    supervision: self-supervised
+    note: "Same objective at larger capacity — separates 'self-supervised' from 'bigger'."
+
+  - name: vit_b16
+    timm_name: vit_base_patch16_224.augreg2_in21k_ft_in1k
+    kind: vit
+    supervision: supervised
+    note: "Matched architecture trained on ImageNet labels."
+
+  - name: clip_vitb16
+    timm_name: vit_base_patch16_clip_224.openai
+    kind: vit
+    supervision: language
+    note: "Same architecture again, supervised by captions rather than class labels."
+
+  - name: resnet50
+    timm_name: resnet50.tv_in1k
+    kind: cnn
+    supervision: supervised
+    note: "Classic convolutional baseline; most prior brain-alignment work used this."
+
+# Which pooled readouts to keep per layer. For ViTs both are kept because they can align
+# with different cortex: see the module docstring in src/nsd_rsa/models.py.
+pooling:
+  vit: [cls, patchmean]
+  cnn: [gap]

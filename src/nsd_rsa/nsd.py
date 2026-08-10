@@ -11,10 +11,14 @@ masking, averaging over repeats) lives in `loaders.py`.
 from __future__ import annotations
 
 import struct
+import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import numpy as np
+
+T = TypeVar("T")
 
 BUCKET = "natural-scenes-dataset"
 REGION = "us-east-2"
@@ -25,9 +29,14 @@ MGH_HEADER_BYTES = 284
 MGH_DTYPES = {0: np.uint8, 1: np.int32, 3: np.float32, 4: np.int16}
 
 
-def get_client():
+def get_client(max_pool: int = 64):
     """Anonymous S3 client. Anonymous because NSD is public-read, not because the
-    licence is optional."""
+    licence is optional.
+
+    Timeouts are set generously and retries enabled: this project pulls tens of GB over
+    a ~1 MB/s link, where a transient read timeout is a certainty rather than a risk. The
+    default 60 s read timeout kills a slow-but-healthy transfer.
+    """
     import boto3
     from botocore import UNSIGNED
     from botocore.config import Config
@@ -35,8 +44,58 @@ def get_client():
     return boto3.client(
         "s3",
         region_name=REGION,
-        config=Config(signature_version=UNSIGNED, max_pool_connections=32),
+        config=Config(
+            signature_version=UNSIGNED,
+            max_pool_connections=max_pool,
+            connect_timeout=30,
+            read_timeout=180,
+            retries={"max_attempts": 8, "mode": "adaptive"},
+        ),
     )
+
+
+# Errors that mean "the network hiccuped", as opposed to "you asked for the wrong thing".
+# Retrying the latter would just burn time, so they are deliberately not listed.
+def _is_transient(exc: BaseException) -> bool:
+    from botocore.exceptions import (
+        ClientError,
+        ConnectionClosedError,
+        ConnectTimeoutError,
+        EndpointConnectionError,
+        IncompleteReadError,
+        ReadTimeoutError,
+    )
+
+    if isinstance(
+        exc,
+        ReadTimeoutError | ConnectTimeoutError | EndpointConnectionError
+        | ConnectionClosedError | IncompleteReadError | OSError,
+    ):
+        return True
+    if isinstance(exc, ClientError):
+        code = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
+        return code in (429, 500, 502, 503, 504)
+    return False
+
+
+def with_retry(fn: Callable[[], T], attempts: int = 6, base_delay: float = 1.5) -> T:
+    """Run `fn`, retrying transient network failures with exponential backoff.
+
+    Needed because a multi-hour download that dies on one dropped connection has to be
+    restarted, and botocore's own retries do not cover a timeout raised while streaming
+    the response body.
+    """
+    last: BaseException | None = None
+    for i in range(attempts):
+        try:
+            return fn()
+        except BaseException as exc:  # noqa: BLE001 — re-raised below if not transient
+            if not _is_transient(exc):
+                raise
+            last = exc
+            if i < attempts - 1:
+                time.sleep(base_delay * (2**i))
+    raise RuntimeError(f"giving up after {attempts} attempts: {last!r}") from last
 
 
 # --- key construction ---------------------------------------------------------
@@ -77,7 +136,7 @@ def download(key: str, dest: Path, client=None, force: bool = False) -> Path:
         return dest
 
     tmp = dest.with_suffix(dest.suffix + ".part")
-    client.download_file(BUCKET, key, str(tmp))
+    with_retry(lambda: client.download_file(BUCKET, key, str(tmp)))
     tmp.replace(dest)
     return dest
 
@@ -173,12 +232,22 @@ def read_mgh_frames_ranged(
     for i, f in enumerate(frames):
         start = MGH_HEADER_BYTES + int(f) * frame_bytes
         end = start + frame_bytes - 1
-        body = client.get_object(Bucket=BUCKET, Key=key, Range=f"bytes={start}-{end}")[
-            "Body"
-        ].read()
-        if len(body) != frame_bytes:
-            raise OSError(f"short read for frame {f}: got {len(body)} of {frame_bytes} bytes")
-        out[i] = np.frombuffer(body, dtype=">f4" if header["dtype"] is np.float32 else header["dtype"])
+
+        def pull(_start=start, _end=end, _f=f) -> bytes:
+            body = client.get_object(Bucket=BUCKET, Key=key, Range=f"bytes={_start}-{_end}")[
+                "Body"
+            ].read()
+            # A truncated body is retryable: treat it as a transient failure rather than
+            # silently writing partial data into the array.
+            if len(body) != frame_bytes:
+                raise OSError(
+                    f"short read for frame {_f}: got {len(body)} of {frame_bytes} bytes"
+                )
+            return body
+
+        body = with_retry(pull)
+        dtype = ">f4" if header["dtype"] is np.float32 else header["dtype"]
+        out[i] = np.frombuffer(body, dtype=dtype)
     return out
 
 

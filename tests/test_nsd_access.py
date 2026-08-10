@@ -130,3 +130,65 @@ def test_range_read_rejects_out_of_range_frame():
     key = nsd.betas_key("subj01", 1, "lh", "fsaverage", "betas_fithrf_GLMdenoise_RR")
     with pytest.raises(IndexError):
         nsd.read_mgh_frames_ranged(key, np.array([750]))
+
+
+# --- retry behaviour -----------------------------------------------------------
+
+
+def test_retry_returns_on_first_success():
+    calls = []
+
+    def fn():
+        calls.append(1)
+        return "ok"
+
+    assert nsd.with_retry(fn) == "ok"
+    assert len(calls) == 1
+
+
+def test_retry_recovers_from_transient_failure(monkeypatch):
+    """A read timeout mid-download killed a 40-session run once; it must not again."""
+    from botocore.exceptions import ReadTimeoutError
+
+    monkeypatch.setattr(nsd.time, "sleep", lambda _s: None)
+    calls = []
+
+    def flaky():
+        calls.append(1)
+        if len(calls) < 3:
+            raise ReadTimeoutError(endpoint_url="s3://x")
+        return "recovered"
+
+    assert nsd.with_retry(flaky) == "recovered"
+    assert len(calls) == 3
+
+
+def test_retry_gives_up_and_reports(monkeypatch):
+    from botocore.exceptions import ReadTimeoutError
+
+    monkeypatch.setattr(nsd.time, "sleep", lambda _s: None)
+
+    def always_fails():
+        raise ReadTimeoutError(endpoint_url="s3://x")
+
+    with pytest.raises(RuntimeError, match="giving up after 3 attempts"):
+        nsd.with_retry(always_fails, attempts=3)
+
+
+def test_retry_does_not_mask_programming_errors(monkeypatch):
+    """Retrying a KeyError would waste minutes hiding a real bug."""
+    monkeypatch.setattr(nsd.time, "sleep", lambda _s: None)
+    calls = []
+
+    def bad():
+        calls.append(1)
+        raise KeyError("typo in a key name")
+
+    with pytest.raises(KeyError):
+        nsd.with_retry(bad)
+    assert len(calls) == 1
+
+
+def test_short_read_is_treated_as_transient():
+    """A truncated body must be retried, never written into the array as partial data."""
+    assert nsd._is_transient(OSError("short read for frame 3"))
