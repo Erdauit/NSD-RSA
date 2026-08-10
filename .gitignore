@@ -1,0 +1,50 @@
+# --- Data & caches (NEVER commit — terabytes / license-restricted) ---
+data/
+cache/
+*.h5
+*.hdf5
+*.npz
+*.npy
+*.nii
+*.nii.gz
+*.mgz
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.python-version
+
+# --- uv / poetry ---
+uv.lock.bak
+poetry.lock.bak
+
+# --- Notebooks ---
+.ipynb_checkpoints/
+
+# --- Tooling ---
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- OS / editors ---
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# --- Secrets / local config ---
+.env
+.env.local
+secrets.yaml
+
+# --- Keep these figure dirs tracked, ignore scratch ---
+figures/scratch/
