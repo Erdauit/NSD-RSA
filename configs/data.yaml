@@ -49,14 +49,32 @@ nsd:
   # [284 + f*655368, 284 + (f+1)*655368). This is what makes `range_read` possible.
 
   # ROIs. "streams" is NSD's coarse anatomical parcellation of visual cortex.
+  # Label values verified against streams.mgz.ctab:
+  #   1 early  2 midventral  3 midlateral  4 midparietal  5 ventral  6 lateral  7 parietal
+  # fsaverage vertex counts (lh+rh): early 11389, midventral 1916, ventral 19065,
+  # midlateral 2286, lateral 20790, midparietal 2260, parietal 9990.
+  # Union of all seven = 67,696 of 327,684 vertices (20.7%).
   roi_source: streams
   rois: [early, midventral, ventral, midlateral, lateral, midparietal, parietal]
-  rois_core: [early, midventral, ventral]   # the three we actually analyse first
+  rois_core: [early, midventral, ventral]   # the ventral hierarchy we test against layers
 
   # Stimulus subset: the 1000 images every subject saw ("shared1000").
   stimulus_subset: shared1000
   n_stimuli: 1000
   n_repeats: 3
+
+  # MEASURED on the real design, not assumed. Only subj01/02/05/07 (40 sessions) saw all
+  # 1000 shared images 3x. The shorter subjects never reached the tail of the design:
+  #   images with >=3 repeats in all 8 subjects : 515
+  #   images with >=2 repeats in all 8 subjects : 766
+  #   images with >=1 repeat  in all 8 subjects : 907
+  # Primary analysis uses min_repeats=3 (515 images): unequal repeat counts mean unequal
+  # measurement noise per image, and a noisier pattern sits further from everything in an
+  # RDM — a stimulus-level confound that would masquerade as representational structure.
+  # 515 images still give 132,355 stimulus pairs, ample for RSA.
+  analysis_min_repeats: 3
+  # Robustness check: all 1000 images, but only the 4 complete subjects.
+  robustness_subjects: [subj01, subj02, subj05, subj07]
 
 paths:
   data_root: data
@@ -72,10 +90,15 @@ download:
   #   stream_sessions : download one session file -> extract shared1000 trials -> delete.
   #                     High transfer volume, low peak disk. Robust. DEFAULT.
   #   range_read      : HTTP range-request only the needed trial slices from .mgh.
-  #                     ~30x less transfer, more fragile. Try after pilot works.
-  strategy: stream_sessions
-  keep_raw_sessions: false      # true = keep session files (needs ~140 GB); false = delete after extract
-  max_parallel: 4
+  #                     10x less transfer. VALIDATED bitwise-identical against a full
+  #                     session download on 2026-08-10 (tests/test_nsd_access.py).
+  # Measured link throughput is ~1 MB/s and does NOT improve with concurrency beyond
+  # ~32 workers, so transfer volume — not parallelism — is the binding constraint.
+  # That makes range_read the only practical option: stream_sessions would need ~70 h
+  # for all 8 subjects versus ~9 h.
+  strategy: range_read
+  keep_raw_sessions: false
+  max_parallel: 32
   store_dtype: float32          # final cached betas dtype
 
   # Stimuli: reconstruct the 1000 NSD images from COCO sources using the crop boxes
