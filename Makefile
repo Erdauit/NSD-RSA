@@ -1,4 +1,4 @@
-.PHONY: help setup check clean-cache lint test s0-estimate s1-download s1-sanity s2-activations s3-rsa s4-analysis s5-encoding figures
+.PHONY: help setup check clean-cache lint test s0-estimate s1-download s1-sanity s2-stimuli s2-activations s3-rsa s4-analysis s5-encoding figures
 
 PY := uv run python
 
@@ -13,7 +13,8 @@ help:
 	@echo "  make s0-estimate    S0: estimate NSD download size BEFORE downloading"
 	@echo "  make s1-download    S1: fetch shared1000 betas from NSD (resumable)"
 	@echo "  make s1-sanity      S1: sanity checks + figures"
-	@echo "  make s2-activations S2: extract + cache model activations for shared1000"
+	@echo "  make s2-stimuli     S2: fetch the 1000 shared images (542 MB)"
+	@echo "  make s2-activations S2: extract + cache model activations"
 	@echo "  make s3-rsa         S3: build RDMs, RSA scores, noise-ceiling normalisation"
 	@echo "  make s4-analysis    S4: main analysis figures"
 	@echo "  make s5-encoding    S5: ridge encoding model"
@@ -56,6 +57,9 @@ s1-download:
 
 s1-sanity:
 	$(PY) scripts/s1_sanity_checks.py --config configs/data.yaml
+
+s2-stimuli:
+	$(PY) scripts/s2_fetch_stimuli.py --config configs/data.yaml
 
 s2-activations:
 	$(PY) scripts/s2_extract_activations.py --config configs/models.yaml
