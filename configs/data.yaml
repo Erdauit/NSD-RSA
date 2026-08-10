@@ -1,0 +1,83 @@
+# S0/S1 — NSD data access & extraction config
+# Everything about WHICH brain data we pull lives here. No paths hardcoded in code.
+
+seed: 0
+
+nsd:
+  # NSD lives on AWS Open Data (no requester-pays), but access requires you to have
+  # signed the NSD Data Access Agreement first. See docs/NSD_ACCESS.md.
+  bucket: natural-scenes-dataset
+  region: us-east-2
+
+  # Which subjects. Start with subj01 only for the pilot, then scale to all 8.
+  subjects: [subj01]
+  all_subjects: [subj01, subj02, subj03, subj04, subj05, subj06, subj07, subj08]
+
+  # Sessions actually collected per subject (NSD is unbalanced: not everyone did 40).
+  sessions_per_subject:
+    subj01: 40
+    subj02: 40
+    subj03: 32
+    subj04: 30
+    subj05: 40
+    subj06: 32
+    subj07: 40
+    subj08: 30
+
+  # Which beta version. b3 = betas_fithrf_GLMdenoise_RR is the NSD-recommended one:
+  # HRF fit per voxel + GLMdenoise + ridge regularisation -> highest SNR.
+  betas_version: betas_fithrf_GLMdenoise_RR
+
+  # Anatomical space. fsaverage = common surface template, so vertex i means
+  # "same cortical location" across subjects. See docs/GLOSSARY.md for why we chose it.
+  space: fsaverage
+  hemis: [lh, rh]
+
+  trials_per_session: 750
+  fsaverage_vertices_per_hemi: 163842
+
+  # VERIFIED against S3 on 2026-08-10 by reading the MGH header of
+  # lh.betas_session01.mgh: version 1, dims 163842x1x1, nframes 750, datatype 3 = float32.
+  # NOTE: the int16 + /300 scaling documented for NSD applies to the *volume* (func1pt8mm)
+  # betas; the fsaverage surface .mgh files are float32. Confirm the units are percent
+  # signal change in S1 by checking the value distribution (expect ~N(0, few %)).
+  betas_dtype: float32
+  betas_itemsize: 4
+  mgh_header_bytes: 284     # fixed-size MGH header; data starts here
+  mgh_footer_bytes: 16      # trailing bytes after the data block
+  # File is UNCOMPRESSED and frame-contiguous: trial f occupies bytes
+  # [284 + f*655368, 284 + (f+1)*655368). This is what makes `range_read` possible.
+
+  # ROIs. "streams" is NSD's coarse anatomical parcellation of visual cortex.
+  roi_source: streams
+  rois: [early, midventral, ventral, midlateral, lateral, midparietal, parietal]
+  rois_core: [early, midventral, ventral]   # the three we actually analyse first
+
+  # Stimulus subset: the 1000 images every subject saw ("shared1000").
+  stimulus_subset: shared1000
+  n_stimuli: 1000
+  n_repeats: 3
+
+paths:
+  data_root: data
+  raw: data/raw                 # transient: raw session files, deleted after extraction
+  betas: data/betas             # persistent: extracted shared1000 matrices
+  stimuli: data/stimuli         # the 1000 images
+  meta: data/meta               # expdesign, roi labels, ncsnr
+  cache: cache
+  figures: figures
+
+download:
+  # Strategy for getting shared1000 betas out of NSD. See docs/NSD_ACCESS.md §4.
+  #   stream_sessions : download one session file -> extract shared1000 trials -> delete.
+  #                     High transfer volume, low peak disk. Robust. DEFAULT.
+  #   range_read      : HTTP range-request only the needed trial slices from .mgh.
+  #                     ~30x less transfer, more fragile. Try after pilot works.
+  strategy: stream_sessions
+  keep_raw_sessions: false      # true = keep session files (needs ~140 GB); false = delete after extract
+  max_parallel: 4
+  store_dtype: float32          # final cached betas dtype
+
+  # Stimuli: reconstruct the 1000 NSD images from COCO sources using the crop boxes
+  # in nsd_stim_info_merged.csv (~150 MB) instead of the 37 GB nsd_stimuli.hdf5.
+  stimuli_source: coco_reconstruct   # coco_reconstruct | nsd_hdf5
