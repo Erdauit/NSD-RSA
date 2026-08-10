@@ -12,7 +12,12 @@ across model layers and cortical regions?
 - **Primary method:** representational similarity analysis (RSA), noise-ceiling normalised.
 - **Convergent method:** voxelwise encoding models (ridge regression).
 
-> Status: **S0 — environment and data access.** No results yet.
+> Status: **S1 complete for subj01.** Betas extracted and validated; remaining subjects
+> downloading. No model results yet.
+>
+> Pipeline validation so far: our per-vertex split-half reliability agrees with NSD's own
+> `ncsnr` estimate at **r = 0.968** across 67,696 vertices, and split-half reliability is
+> higher in early visual cortex (+0.40) than anterior ventral cortex (+0.21) as expected.
 
 ---
 
