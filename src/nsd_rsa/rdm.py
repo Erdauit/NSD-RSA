@@ -217,6 +217,14 @@ def bootstrap_ci(
 
 
 def rank_transform(rdm: np.ndarray) -> np.ndarray:
-    """Rank-transform an RDM to [0, 1]. Useful for plotting RDMs on a common scale."""
+    """Rank-transform an RDM to [0, 1]. Useful for plotting RDMs on a common scale.
+
+    A constant RDM has no rank spread at all — it arises from a dead ROI or a readout
+    that captured nothing. Return zeros rather than dividing by a zero range, so the
+    degenerate case propagates as "correlates with nothing" instead of NaN.
+    """
     r = rankdata(np.asarray(rdm, dtype=np.float64).ravel())
-    return (r - r.min()) / (r.max() - r.min())
+    span = r.max() - r.min()
+    if span == 0:
+        return np.zeros_like(r)
+    return (r - r.min()) / span
