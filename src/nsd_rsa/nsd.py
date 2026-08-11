@@ -59,17 +59,19 @@ def get_client(max_pool: int = 64):
 def _is_transient(exc: BaseException) -> bool:
     from botocore.exceptions import (
         ClientError,
-        ConnectionClosedError,
-        ConnectTimeoutError,
-        EndpointConnectionError,
+        HTTPClientError,
         IncompleteReadError,
-        ReadTimeoutError,
+    )
+    from botocore.exceptions import (
+        ConnectionError as BotoConnectionError,
     )
 
+    # Match on botocore's BASE classes, not on individual leaf types. An earlier version
+    # enumerated the leaves and missed ResponseStreamingError, which killed a subject
+    # 27 sessions into its download. HTTPClientError covers read timeouts, closed
+    # connections and streaming failures; ConnectionError covers endpoint failures.
     if isinstance(
-        exc,
-        ReadTimeoutError | ConnectTimeoutError | EndpointConnectionError
-        | ConnectionClosedError | IncompleteReadError | OSError,
+        exc, HTTPClientError | BotoConnectionError | IncompleteReadError | OSError
     ):
         return True
     if isinstance(exc, ClientError):

@@ -192,3 +192,48 @@ def test_retry_does_not_mask_programming_errors(monkeypatch):
 def test_short_read_is_treated_as_transient():
     """A truncated body must be retried, never written into the array as partial data."""
     assert nsd._is_transient(OSError("short read for frame 3"))
+
+
+def test_all_botocore_network_errors_are_transient():
+    """Regression: an earlier version enumerated leaf exception classes and missed
+    ResponseStreamingError, which killed subj03 twenty-seven sessions in. Matching on
+    botocore's base classes covers the whole family, including ones added later."""
+    from botocore import exceptions as boto
+
+    for name in (
+        "ResponseStreamingError",
+        "ReadTimeoutError",
+        "ConnectTimeoutError",
+        "ConnectionClosedError",
+        "EndpointConnectionError",
+        "IncompleteReadError",
+    ):
+        cls = getattr(boto, name, None)
+        if cls is None:
+            continue
+        # Each class wants different kwargs for its message template; try the known
+        # shapes until one constructs.
+        exc = None
+        for kwargs in (
+            {"endpoint_url": "s3://x", "error": "boom"},
+            {"error": "boom"},
+            {"endpoint_url": "s3://x"},
+            {"actual_bytes": 1, "expected_bytes": 2},
+        ):
+            try:
+                exc = cls(**kwargs)
+                break
+            except (TypeError, KeyError):
+                continue
+        assert exc is not None, f"could not construct {name}"
+        assert nsd._is_transient(exc), f"{name} must be retried"
+
+
+def test_client_errors_are_not_blindly_retried():
+    """A 404 means we asked for the wrong key; retrying just burns time."""
+    from botocore.exceptions import ClientError
+
+    not_found = ClientError({"ResponseMetadata": {"HTTPStatusCode": 404}}, "GetObject")
+    throttled = ClientError({"ResponseMetadata": {"HTTPStatusCode": 503}}, "GetObject")
+    assert not nsd._is_transient(not_found)
+    assert nsd._is_transient(throttled)
