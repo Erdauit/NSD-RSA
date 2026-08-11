@@ -5,6 +5,14 @@
 #   dinov2_vitb14 vs dinov2_vitl14 -> same objective, different capacity
 #   vit_b16       vs clip_vitb16  -> same architecture, image labels vs language
 #   resnet50                       -> the pre-transformer baseline everyone knows
+#
+# input_size is set EXPLICITLY for every model, and deliberately to the same value.
+# timm's own defaults are 518 for DINOv2 and 224 for supervised ViT-B/16 and CLIP.
+# Running each at its own default would confound the very thing we are testing: a
+# difference in brain alignment could then come from seeing the image at 518 rather
+# than from the training objective, and no reviewer would accept the claim. Matching
+# resolution keeps each designed pair differing in exactly one factor.
+# A native-resolution pass is kept as a robustness check (see docs/IDEAS.md).
 
 seed: 0
 device: auto          # auto | cpu | cuda | mps
@@ -18,30 +26,35 @@ paths:
 
 models:
   - name: dinov2_vitb14
+    input_size: 224
     timm_name: vit_base_patch14_dinov2.lvd142m
     kind: vit
     supervision: self-supervised
     note: "The hypothesis under test. Self-distillation, no labels, no language."
 
   - name: dinov2_vitl14
+    input_size: 224
     timm_name: vit_large_patch14_dinov2.lvd142m
     kind: vit
     supervision: self-supervised
     note: "Same objective at larger capacity — separates 'self-supervised' from 'bigger'."
 
   - name: vit_b16
+    input_size: 224
     timm_name: vit_base_patch16_224.augreg2_in21k_ft_in1k
     kind: vit
     supervision: supervised
     note: "Matched architecture trained on ImageNet labels."
 
   - name: clip_vitb16
+    input_size: 224
     timm_name: vit_base_patch16_clip_224.openai
     kind: vit
     supervision: language
     note: "Same architecture again, supervised by captions rather than class labels."
 
   - name: resnet50
+    input_size: 224
     timm_name: resnet50.tv_in1k
     kind: cnn
     supervision: supervised

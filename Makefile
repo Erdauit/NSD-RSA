@@ -1,4 +1,4 @@
-.PHONY: help setup check clean-cache lint test s0-estimate s1-download s1-sanity s2-stimuli s2-activations s3-rsa s4-analysis s5-encoding figures
+.PHONY: help setup check clean-cache lint test s0-estimate s1-download s1-sanity s2-stimuli s2-activations s2-check s3-rsa s4-analysis s5-encoding figures
 
 PY := uv run python
 
@@ -15,6 +15,7 @@ help:
 	@echo "  make s1-sanity      S1: sanity checks + figures"
 	@echo "  make s2-stimuli     S2: fetch the 1000 shared images (542 MB)"
 	@echo "  make s2-activations S2: extract + cache model activations"
+	@echo "  make s2-check       S2: sanity-check activations + layer-similarity figure"
 	@echo "  make s3-rsa         S3: build RDMs, RSA scores, noise-ceiling normalisation"
 	@echo "  make s4-analysis    S4: main analysis figures"
 	@echo "  make s5-encoding    S5: ridge encoding model"
@@ -63,6 +64,9 @@ s2-stimuli:
 
 s2-activations:
 	$(PY) scripts/s2_extract_activations.py --config configs/models.yaml
+
+s2-check:
+	$(PY) scripts/s2_check_activations.py --config configs/models.yaml
 
 s3-rsa:
 	$(PY) scripts/s3_rsa.py --config configs/rsa.yaml

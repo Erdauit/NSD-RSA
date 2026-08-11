@@ -35,6 +35,7 @@ class ModelSpec:
     kind: str                      # 'vit' or 'cnn' — decides how layers are enumerated
     supervision: str               # 'self-supervised' | 'supervised' | 'language'
     note: str = ""
+    input_size: int | None = None  # override the checkpoint's default resolution
     layers: list[str] = field(default_factory=list)  # filled in at build time
 
     @classmethod
@@ -45,6 +46,7 @@ class ModelSpec:
             kind=d["kind"],
             supervision=d.get("supervision", "unknown"),
             note=d.get("note", ""),
+            input_size=d.get("input_size"),
         )
 
 
@@ -61,16 +63,34 @@ def pick_device(prefer: str = "auto") -> torch.device:
 def build_model(spec: ModelSpec, device: torch.device):
     """Instantiate a pretrained model plus its own preprocessing transform.
 
-    The transform comes from timm's config for that checkpoint, not a shared default:
-    models differ in input size and normalisation statistics, and feeding a model the
-    wrong preprocessing quietly degrades its representations.
+    Normalisation statistics always come from timm's config for that checkpoint, never a
+    shared default — feeding a model the wrong mean/std quietly degrades its
+    representations.
+
+    Resolution is different, and is a deliberate choice rather than a detail. timm's
+    default for DINOv2 is 518x518 but 224x224 for supervised ViT-B/16 and CLIP. Comparing
+    them at their own defaults would confound the thing we are testing: a difference in
+    brain alignment could come from seeing the image at 518 rather than from the training
+    objective. `input_size` in the registry forces a common resolution so the pairs differ
+    in exactly one thing.
     """
     import timm
 
-    model = timm.create_model(spec.timm_name, pretrained=True, num_classes=0)
+    kwargs: dict[str, Any] = {"pretrained": True, "num_classes": 0}
+    # Only ViTs need img_size at construction: their positional embeddings are tied to a
+    # fixed token grid, so timm has to interpolate them. A CNN is fully convolutional and
+    # accepts any input, so its resolution is set purely by the transform — passing
+    # img_size to a ResNet is a TypeError.
+    if spec.input_size is not None and spec.kind == "vit":
+        kwargs["img_size"] = spec.input_size
+
+    model = timm.create_model(spec.timm_name, **kwargs)
     model.eval().to(device)
 
     cfg = timm.data.resolve_data_config({}, model=model)
+    if spec.input_size is not None:
+        cfg["input_size"] = (3, spec.input_size, spec.input_size)
+        cfg["crop_pct"] = 1.0
     transform = timm.data.create_transform(**cfg, is_training=False)
     return model, transform, cfg
 

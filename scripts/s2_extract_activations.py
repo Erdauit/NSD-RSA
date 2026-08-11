@@ -34,19 +34,38 @@ from nsd_rsa.models import (  # noqa: E402
 )
 
 
-def cache_path(cache_dir: Path, name: str) -> Path:
-    return cache_dir / "activations" / f"{name}.h5"
+def cache_path(cache_dir: Path, name: str, input_size: int) -> Path:
+    """Cache filename carries the input resolution.
+
+    Without it, a matched-resolution run and a native-resolution run would silently
+    overwrite each other, and there would be no way to tell from the filename which
+    resolution a cached result came from.
+    """
+    return cache_dir / "activations" / f"{name}_{input_size}.h5"
 
 
 def run_model(spec: ModelSpec, images: np.ndarray, cfg: dict, paths: dict, device) -> Path:
     import h5py
 
-    out = cache_path(paths["cache"], spec.name)
+    if spec.input_size is None:
+        raise ValueError(
+            f"{spec.name}: input_size must be set explicitly in the registry. Leaving it "
+            "to each checkpoint's default would confound training objective with input "
+            "resolution — see the comment at the top of configs/models.yaml."
+        )
+    out = cache_path(paths["cache"], spec.name, spec.input_size)
     out.parent.mkdir(parents=True, exist_ok=True)
     if out.exists():
         with h5py.File(out, "r") as f:
-            print(f"  cached: {out.name} ({len(f.keys())} layer readouts)")
-        return out
+            cached_n = int(f.attrs.get("n_images", -1))
+            n_readouts = len(f.keys())
+        # A smoke-test run with --limit writes a short cache. Reusing it silently would
+        # quietly run the whole analysis on 32 images instead of 1000, so the image count
+        # is checked rather than assumed.
+        if cached_n == len(images):
+            print(f"  cached: {out.name} ({n_readouts} readouts, {cached_n} images)")
+            return out
+        print(f"  recomputing {out.name}: cached {cached_n} images, need {len(images)}")
 
     print(f"\n=== {spec.name} ({spec.supervision}) ===")
     print(f"  {spec.note}")
@@ -74,6 +93,7 @@ def run_model(spec: ModelSpec, images: np.ndarray, cfg: dict, paths: dict, devic
         f.attrs["kind"] = spec.kind
         f.attrs["supervision"] = spec.supervision
         f.attrs["n_images"] = len(images)
+        f.attrs["input_size"] = spec.input_size
 
     del model
     print(f"  -> {out} ({out.stat().st_size/1e6:.0f} MB)")
@@ -87,9 +107,10 @@ def print_dimension_table(paths: dict, specs: list[ModelSpec]) -> None:
     print("\n" + "=" * 74)
     print("ACTIVATION CACHE — dimensions")
     print("=" * 74)
-    print(f"{'model':<16}{'supervision':<17}{'readouts':>9}{'depth':>7}{'dim range':>16}{'MB':>7}")
+    print(f"{'model':<16}{'supervision':<17}{'px':>5}{'readouts':>9}{'depth':>7}"
+          f"{'dim range':>14}{'MB':>7}")
     for spec in specs:
-        p = cache_path(paths["cache"], spec.name)
+        p = cache_path(paths["cache"], spec.name, spec.input_size)
         if not p.exists():
             print(f"{spec.name:<16}{'(not extracted)':<17}")
             continue
@@ -97,8 +118,8 @@ def print_dimension_table(paths: dict, specs: list[ModelSpec]) -> None:
             keys = sorted(f.keys())
             dims = [f[k].shape[1] for k in keys]
             depth = len({k.split(".")[0] for k in keys})
-        print(f"{spec.name:<16}{spec.supervision:<17}{len(keys):>9}{depth:>7}"
-              f"{f'{min(dims)}-{max(dims)}':>16}{p.stat().st_size/1e6:>7.0f}")
+        print(f"{spec.name:<16}{spec.supervision:<17}{spec.input_size:>5}{len(keys):>9}"
+              f"{depth:>7}{f'{min(dims)}-{max(dims)}':>14}{p.stat().st_size/1e6:>7.0f}")
 
 
 def main() -> int:
