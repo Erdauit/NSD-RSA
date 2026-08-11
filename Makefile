@@ -1,4 +1,4 @@
-.PHONY: help setup check clean-cache lint test s0-estimate s1-download s1-sanity s2-stimuli s2-activations s2-check s3-rsa s4-analysis s5-encoding figures
+.PHONY: help setup check clean-cache lint test s0-estimate s1-download s1-sanity s2-stimuli s2-activations s2-check s3-rsa s3-control s4-analysis s5-encoding figures
 
 PY := uv run python
 
@@ -17,6 +17,7 @@ help:
 	@echo "  make s2-activations S2: extract + cache model activations"
 	@echo "  make s2-check       S2: sanity-check activations + layer-similarity figure"
 	@echo "  make s3-rsa         S3: build RDMs, RSA scores, noise-ceiling normalisation"
+	@echo "  make s3-control     S3: low-level (luminance/contrast) control baselines"
 	@echo "  make s4-analysis    S4: main analysis figures"
 	@echo "  make s5-encoding    S5: ridge encoding model"
 	@echo ""
@@ -70,6 +71,9 @@ s2-check:
 
 s3-rsa:
 	$(PY) scripts/s3_rsa.py --config configs/rsa.yaml
+
+s3-control:
+	$(PY) scripts/s3_lowlevel_control.py --config configs/rsa.yaml
 
 s4-analysis:
 	$(PY) scripts/s4_analysis.py --config configs/rsa.yaml
