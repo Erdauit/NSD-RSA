@@ -221,7 +221,7 @@ def main() -> int:
         print(f"\npermutation test on the best readout per (model, ROI), {n_perm} permutations")
         for model, res in results.items():
             pvals = []
-            for j, roi in enumerate(rois):
+            for j in range(len(rois)):
                 model_rdm = models[model].rdms[res["best_idx"][j]]
                 group_rdm = np.mean([brain[s].rdms[j] for s in subjects], axis=0)
                 _, p = permutation_test(model_rdm, group_rdm, n_perm=n_perm, seed=cfg["seed"])
