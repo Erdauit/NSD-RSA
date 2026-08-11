@@ -39,7 +39,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 from nsd_rsa.config import load_config, resolve_paths, set_seed  # noqa: E402
 from nsd_rsa.design import load_expdesign, usable_images  # noqa: E402
-from nsd_rsa.loaders import load_subject  # noqa: E402
+from nsd_rsa.loaders import common_valid_vertices, load_subject  # noqa: E402
 from nsd_rsa.noise_ceiling import normalise_to_ceiling, rsa_noise_ceiling  # noqa: E402
 from nsd_rsa.rdm import permutation_test  # noqa: E402
 from nsd_rsa.rsa import (  # noqa: E402
@@ -52,7 +52,7 @@ from nsd_rsa.rsa import (  # noqa: E402
 
 
 def build_brain_banks(
-    paths: dict, cfg: dict, images: np.ndarray
+    paths: dict, cfg: dict, images: np.ndarray, valid: np.ndarray
 ) -> tuple[dict[str, RDMBank], list[str]]:
     """One RDM bank per subject, over the configured ROIs."""
     rois = cfg["rois"]["order"]
@@ -61,7 +61,9 @@ def build_brain_banks(
         subject = path.stem.split("_")[0]
         t0 = time.time()
         data = load_subject(path)
-        banks[subject] = brain_rdm_bank(data, rois, images, metric=cfg["rdm"]["metric"])
+        banks[subject] = brain_rdm_bank(
+            data, rois, images, metric=cfg["rdm"]["metric"], valid=valid
+        )
         found.append(subject)
         print(f"  {subject}: {len(rois)} ROI RDMs over {len(images)} images "
               f"({time.time()-t0:.0f}s)")
@@ -166,8 +168,15 @@ def main() -> int:
           f"repeats in all {len(cfg['stimuli']['subjects'])} subjects")
     print(f"              -> {len(images)*(len(images)-1)//2:,} stimulus pairs per RDM\n")
 
+    # Vertices with data in every subject. NSD's slab acquisition misses the posterior
+    # edge of V1 in some subjects, and an ROI must mean the same cortical locations in
+    # everyone or the noise ceiling would partly measure coverage differences.
+    valid = common_valid_vertices(paths["betas"], paths["cache"] / "valid_vertices.npy")
+    print(f"valid vertices: {valid.sum():,} of {len(valid):,} "
+          f"({(~valid).sum()} dropped as missing in at least one subject)\n")
+
     print("building brain RDMs")
-    brain, subjects = build_brain_banks(paths, cfg, images)
+    brain, subjects = build_brain_banks(paths, cfg, images, valid)
     if len(subjects) < 3:
         print(f"\nNeed at least 3 subjects for a noise ceiling; have {len(subjects)}. "
               "Let the download finish.")

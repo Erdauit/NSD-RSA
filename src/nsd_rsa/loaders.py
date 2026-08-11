@@ -59,8 +59,68 @@ def load_subject(path: str | Path) -> SubjectBetas:
         )
 
 
+def common_valid_vertices(betas_dir: str | Path, cache: str | Path | None = None) -> np.ndarray:
+    """Vertices with finite data in EVERY subject.
+
+    NSD's functional acquisition is a slab centred on visual cortex, not a whole-brain
+    scan. For some subjects the most posterior edge of V1 falls outside it, so those
+    fsaverage vertices have no data and arrive as NaN. Measured across all eight
+    subjects: 350 such vertices in subj06 and 37 in subj08, all in `early` — 0.57% of the
+    67,696 we keep.
+
+    They must be dropped from every subject, not just the affected ones. An ROI has to
+    mean the same set of cortical locations in each subject, or the noise ceiling — which
+    is built by comparing subjects' RDMs — would partly measure differences in scanner
+    coverage rather than differences in representation.
+    """
+    import h5py
+
+    betas_dir = Path(betas_dir)
+    cache = Path(cache) if cache else None
+    if cache and cache.exists():
+        return np.load(cache)
+
+    files = sorted(betas_dir.glob("*_shared_betas.h5"))
+    if not files:
+        raise FileNotFoundError(f"no subject files in {betas_dir}")
+
+    valid: np.ndarray | None = None
+    for path in files:
+        with h5py.File(path, "r") as f:
+            betas = f["betas"]
+            ok = np.ones(betas.shape[1], dtype=bool)
+            for start in range(0, betas.shape[0], 500):
+                ok &= np.isfinite(betas[start : start + 500]).all(axis=0)
+        valid = ok if valid is None else (valid & ok)
+
+    if cache:
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        np.save(cache, valid)
+    return valid
+
+
+def _vertex_selector(
+    data: SubjectBetas, roi: str | None, valid: np.ndarray | None
+) -> np.ndarray:
+    """Boolean column selector combining the ROI mask with the cross-subject valid mask."""
+    mask = np.ones(data.betas.shape[1], dtype=bool) if roi is None else data.roi_mask(roi)
+    if valid is not None:
+        if len(valid) != data.betas.shape[1]:
+            raise ValueError(
+                f"valid mask has {len(valid)} entries but {data.subject} has "
+                f"{data.betas.shape[1]} vertices"
+            )
+        mask = mask & valid
+    if not mask.any():
+        raise ValueError(f"{data.subject}/{roi}: no vertices left after masking")
+    return mask
+
+
 def average_repeats(
-    data: SubjectBetas, images: np.ndarray | None = None, roi: str | None = None
+    data: SubjectBetas,
+    images: np.ndarray | None = None,
+    roi: str | None = None,
+    valid: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Collapse presentations into one response pattern per image.
 
@@ -72,8 +132,7 @@ def average_repeats(
     Returns (patterns, images_kept) where patterns is (n_images, n_vertices), laid out
     exactly like a batch of model activations so the RDM code treats both identically.
     """
-    sel_v = slice(None) if roi is None else data.roi_mask(roi)
-    betas = data.betas[:, sel_v]
+    betas = data.betas[:, _vertex_selector(data, roi, valid)]
 
     images = np.unique(data.image) if images is None else np.asarray(images)
     out = np.empty((len(images), betas.shape[1]), dtype=np.float32)
@@ -86,7 +145,11 @@ def average_repeats(
 
 
 def split_half(
-    data: SubjectBetas, images: np.ndarray | None = None, roi: str | None = None, seed: int = 0
+    data: SubjectBetas,
+    images: np.ndarray | None = None,
+    roi: str | None = None,
+    seed: int = 0,
+    valid: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Split each image's repeats into two independent halves and average within each.
 
@@ -100,8 +163,7 @@ def split_half(
     Returns (half_a, half_b, images_kept).
     """
     rng = np.random.default_rng(seed)
-    sel_v = slice(None) if roi is None else data.roi_mask(roi)
-    betas = data.betas[:, sel_v]
+    betas = data.betas[:, _vertex_selector(data, roi, valid)]
 
     images = np.unique(data.image) if images is None else np.asarray(images)
     keep, a_rows, b_rows = [], [], []

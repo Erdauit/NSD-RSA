@@ -85,7 +85,12 @@ def model_rdm_bank(
 
 
 def brain_rdm_bank(
-    data, rois: list[str], images: np.ndarray, metric: str = "correlation", dtype=np.float32
+    data,
+    rois: list[str],
+    images: np.ndarray,
+    metric: str = "correlation",
+    dtype=np.float32,
+    valid: np.ndarray | None = None,
 ) -> RDMBank:
     """Build one RDM per ROI for a subject, on the same stimulus subset.
 
@@ -96,7 +101,7 @@ def brain_rdm_bank(
 
     labels, rows = [], []
     for roi in rois:
-        patterns, kept = average_repeats(data, images=images, roi=roi)
+        patterns, kept = average_repeats(data, images=images, roi=roi, valid=valid)
         if len(kept) != len(images):
             raise ValueError(f"{data.subject}/{roi}: expected {len(images)} images, got {len(kept)}")
         labels.append(roi)
