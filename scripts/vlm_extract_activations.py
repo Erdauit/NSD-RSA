@@ -69,6 +69,7 @@ def main() -> int:
     images = np.asarray(all_images[image_idx])
     if args.limit:
         images = images[: args.limit]
+        image_idx = image_idx[: args.limit]
 
     specs = [VLMSpec.from_config(d) for d in cfg["models"]]
     if args.models:
@@ -119,6 +120,9 @@ def main() -> int:
             with h5py.File(tmp, "w") as f:
                 for key, arr in sorted(acts.items()):
                     f.create_dataset(key, data=arr, compression="lzf")
+                # Which shared-image slots these rows correspond to. Without this the
+                # cache cannot be distinguished from one holding all 1000 in slot order.
+                f.create_dataset("image_index", data=np.asarray(image_idx))
                 f.attrs["model"] = spec.name
                 f.attrs["hf_name"] = spec.hf_name
                 f.attrs["prompt_name"] = prompt_name

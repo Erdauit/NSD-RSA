@@ -230,7 +230,10 @@ def main() -> int:
                 col = res["norm"][:, j]
                 best = int(np.nanargmax(col))
                 placed = stack_position(res["labels"][best], n_vision)
-                depth = placed[0] / max(len(res["labels"]) // 3, 1) if placed else float("nan")
+                n_positions = max(
+                    (stack_position(lab, n_vision) or (0, ""))[0] for lab in res["labels"]
+                )
+                depth = placed[0] / max(n_positions, 1) if placed else float("nan")
                 print(f"{model:<15}{prompt:<9}{roi:<12}{col[best]:>7.3f}"
                       f"{res['labels'][best]:>22}{depth:>9.2f}")
                 summary[f"{model}|{prompt}|{roi}"] = {

@@ -68,17 +68,49 @@ def compare_banks(a: RDMBank, b: RDMBank) -> np.ndarray:
 def model_rdm_bank(
     path, images: np.ndarray, metric: str = "correlation", dtype=np.float32
 ) -> RDMBank:
-    """Build one RDM per cached readout, restricted to `images` (indices into the 1000).
+    """Build one RDM per cached readout, restricted to `images` (shared-image slots).
+
+    Caches differ in what they hold: the S2 vision-encoder caches store all 1000 shared
+    images in slot order, while the VLM caches store only the analysis subset. A cache
+    that records an `image_index` dataset is taken at its word and its rows are looked up;
+    otherwise rows are assumed to be slot-ordered.
+
+    That distinction is why this is not a plain fancy-index. Indexing a 515-row subset
+    cache with slot numbers happened to raise IndexError here, but on a cache with 1000
+    rows in a different order it would have silently correlated the wrong pictures.
 
     Readouts are kept separate rather than concatenated: a ViT block contributes both its
     CLS token and its mean-pooled patch tokens, and those can align with different cortex.
     """
     import h5py
 
+    images = np.asarray(images)
     labels, rows = [], []
     with h5py.File(path, "r") as f:
-        for key in sorted(f.keys()):
-            acts = f[key][:][images].astype(np.float64)
+        keys = sorted(k for k in f.keys() if k != "image_index")
+
+        if "image_index" in f:
+            stored = f["image_index"][:]
+            lookup = {int(img): i for i, img in enumerate(stored)}
+            missing = [int(i) for i in images if int(i) not in lookup]
+            if missing:
+                raise KeyError(
+                    f"{path}: cache lacks {len(missing)} requested images "
+                    f"(first few: {missing[:5]}). It was built on a different subset."
+                )
+            take = np.array([lookup[int(i)] for i in images])
+        else:
+            n_rows = f[keys[0]].shape[0]
+            if images.max() >= n_rows:
+                raise IndexError(
+                    f"{path}: image slot {images.max()} requested but the cache has only "
+                    f"{n_rows} rows and carries no image_index to map them. Re-extract "
+                    "so the cache records which images it holds."
+                )
+            take = images
+
+        for key in keys:
+            acts = f[key][:][take].astype(np.float64)
             labels.append(key)
             rows.append(compute_rdm(acts, metric=metric).astype(dtype))
     return RDMBank(labels, np.vstack(rows))
