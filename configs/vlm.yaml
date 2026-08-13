@@ -1,0 +1,63 @@
+# VLM stack analysis — the project's own contribution.
+#
+# Question: brain-alignment work stops at the vision encoder, but in a VLM the visual
+# tokens then pass through a language model for another 25-30 layers. Where along the
+# whole stack does human visual cortex alignment live, and does it depend on the task
+# the model has been given?
+
+seed: 0
+device: mps
+
+# float32, not bfloat16. Measured on SmolVLM-2.2B: bf16 moves the RDM by 0.02-0.05
+# against an fp32 reference that reproduces itself bitwise, which is the same size as the
+# between-model effects we report. scripts/vlm_precision_check.py reproduces this.
+dtype: float32
+
+# SmolVLM tiles images by default: 1563-token sequences instead of 103, i.e. 33 s/img
+# instead of ~1-4 in float32. Disabling it is also the cleaner comparison, since cortex
+# sees the whole visual field at once rather than high-resolution fragments.
+tiling: false
+
+paths:
+  stimuli: data/stimuli
+  meta: data/meta
+  betas: data/betas
+  cache: cache
+  figures: figures
+
+stimuli:
+  # The analysis subset: images with 3 repeats in all 8 subjects. Matches S3 exactly, so
+  # VLM results drop straight into the existing RSA pipeline.
+  min_repeats: 3
+  subjects: [subj01, subj02, subj03, subj04, subj05, subj06, subj07, subj08]
+
+# One family at three scales. Same architecture and training recipe throughout, so any
+# change across the ladder is capacity rather than a confound.
+# Measured on M5 (float32, no tiling): 0.12, 0.13 and 1.1-4.1 s/img respectively — the
+# 2.2B dominates the budget entirely.
+models:
+  - name: smolvlm_256m
+    hf_name: HuggingFaceTB/SmolVLM-256M-Instruct
+    note: "Smallest rung. 12 vision blocks, 30 LLM layers, width 576."
+
+  - name: smolvlm_500m
+    hf_name: HuggingFaceTB/SmolVLM-500M-Instruct
+    note: "Middle rung. Same recipe, wider LLM (960)."
+
+  - name: smolvlm_2b
+    hf_name: HuggingFaceTB/SmolVLM-Instruct
+    note: "2.25B. 25 LLM layers, width 2048. Costs ~90% of the compute budget."
+
+# Task conditions. Human visual cortex is modulated by task; a VLM lets us set the task
+# literally. `none` is the control — the image with no question attached.
+prompts: [none, objects, spatial, mood]
+
+# The question goes BEFORE the image, and this is load-bearing rather than stylistic.
+# Attention is causal, so image tokens can only attend to what precedes them. With the
+# usual (image, then question) layout the image-token readouts are bitwise identical
+# across prompts — verified, max difference 0.000000 — so four prompts would yield four
+# identical copies and a "no task modulation" null caused by architecture rather than by
+# the model. Putting the question first makes the modulation measurable (max difference
+# ~0.9 by mid-depth) and matches how the human experiment works: you tell a subject what
+# to look for before showing the picture.
+prompt_position: before

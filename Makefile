@@ -1,4 +1,4 @@
-.PHONY: help setup check clean-cache lint test s0-estimate s1-download s1-sanity s2-stimuli s2-activations s2-check s3-rsa s3-control s4-analysis s5-encoding figures
+.PHONY: help setup check clean-cache lint test s0-estimate s1-download s1-sanity s2-stimuli s2-activations s2-check s3-rsa s3-control vlm-smoke vlm-precision vlm-extract s4-analysis s5-encoding figures
 
 PY := uv run python
 
@@ -20,6 +20,10 @@ help:
 	@echo "  make s3-control     S3: low-level (luminance/contrast) control baselines"
 	@echo "  make s4-analysis    S4: main analysis figures"
 	@echo "  make s5-encoding    S5: ridge encoding model"
+	@echo ""
+	@echo "  make vlm-smoke      VLM: check the stack is readable on this machine"
+	@echo "  make vlm-precision  VLM: does reduced precision distort the geometry?"
+	@echo "  make vlm-extract    VLM: activations across the full stack, all prompts"
 	@echo ""
 	@echo "  make clean-cache    Delete cache/ (activations, RDMs). Keeps data/."
 
@@ -74,6 +78,15 @@ s3-rsa:
 
 s3-control:
 	$(PY) scripts/s3_lowlevel_control.py --config configs/rsa.yaml
+
+vlm-smoke:
+	$(PY) scripts/vlm_smoke_test.py
+
+vlm-precision:
+	$(PY) scripts/vlm_precision_check.py
+
+vlm-extract:
+	$(PY) scripts/vlm_extract_activations.py --config configs/vlm.yaml
 
 s4-analysis:
 	$(PY) scripts/s4_analysis.py --config configs/rsa.yaml
