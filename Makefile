@@ -1,4 +1,4 @@
-.PHONY: help setup check clean-cache lint test s0-estimate s1-download s1-sanity s2-stimuli s2-activations s2-check s3-rsa s3-control vlm-smoke vlm-precision vlm-extract vlm-rsa s4-analysis s5-encoding figures
+.PHONY: help setup check clean-cache lint test s0-estimate s1-download s1-sanity s2-stimuli s2-activations s2-check s3-rsa s3-control vlm-smoke vlm-precision vlm-extract vlm-rsa explore s4-analysis s5-encoding figures
 
 PY := uv run python
 
@@ -25,6 +25,8 @@ help:
 	@echo "  make vlm-precision  VLM: does reduced precision distort the geometry?"
 	@echo "  make vlm-extract    VLM: activations across the full stack, all prompts"
 	@echo "  make vlm-rsa        VLM: stack profile + task modulation figures"
+	@echo ""
+	@echo "  make explore        Open the interactive data-exploration notebook"
 	@echo ""
 	@echo "  make clean-cache    Delete cache/ (activations, RDMs). Keeps data/."
 
@@ -91,6 +93,9 @@ vlm-extract:
 
 vlm-rsa:
 	$(PY) scripts/vlm_rsa.py --config configs/vlm.yaml
+
+explore:
+	uv run jupyter lab notebooks/02_explore.ipynb
 
 s4-analysis:
 	$(PY) scripts/s4_analysis.py --config configs/rsa.yaml
