@@ -194,3 +194,21 @@ rsync -av cache/*.json figures/ "<ноутбук>:.../"
 
 **Чего не делать:** не переходить на bf16 «чтобы влезло», не проверив шаг 1. И не менять
 `prompt_position` — вопрос должен идти до картинки, иначе эффект задачи невозможен.
+
+---
+
+## Настройка git на второй машине
+
+Коммиты засчитываются в contribution graph только если email автора привязан к аккаунту
+GitHub. На новой машине git подставит что-то своё по умолчанию, поэтому задай явно:
+
+```bash
+git config user.name "Erdauit" && git config user.email "erdauttorehan@icloud.com"
+```
+
+Проверить, что коммит действительно привязался, можно так — если поле `author` не `null`,
+значит GitHub сопоставил email с аккаунтом:
+
+```bash
+curl -s "https://api.github.com/repos/Erdauit/NSD-RSA/commits?per_page=1" | python3 -c "import json,sys; c=json.load(sys.stdin)[0]; print('привязан:', c['author']['login'] if c.get('author') else 'НЕТ')"
+```
