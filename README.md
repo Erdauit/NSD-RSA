@@ -12,12 +12,22 @@ across model layers and cortical regions?
 - **Primary method:** representational similarity analysis (RSA), noise-ceiling normalised.
 - **Convergent method:** voxelwise encoding models (ridge regression).
 
-> Status: **S1 complete for subj01.** Betas extracted and validated; remaining subjects
-> downloading. No model results yet.
+**Начать отсюда:** [`docs/CONTEXT.md`](docs/CONTEXT.md) — что это за проект и что уже
+сделано, за пять минут. Запуск на машине с видеокартой —
+[`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md). План текущей фазы — [`PHASE2.md`](PHASE2.md).
+
+> Status: **parts A and B computed; generalisation across model families in progress.**
+> All 8 subjects, 515 stimuli, 7 cortical regions, 5 vision encoders + 2 VLMs.
 >
-> Pipeline validation so far: our per-vertex split-half reliability agrees with NSD's own
-> `ncsnr` estimate at **r = 0.968** across 67,696 vertices, and split-half reliability is
-> higher in early visual cortex (+0.40) than anterior ventral cortex (+0.21) as expected.
+> *Pipeline validation:* our per-vertex split-half reliability agrees with NSD's own `ncsnr`
+> at **r = 0.968** across 67,696 vertices; the layer-to-region hierarchy replicates in all
+> 5 encoders; reliability is higher in early visual cortex (+0.40) than anterior ventral
+> (+0.21), as it must be.
+>
+> *Result under test:* passing through a VLM's language stack, alignment to early visual
+> cortex falls monotonically — **0 of 8 subjects show a rise, in both model scales**
+> (p = 0.008 each) — while alignment to lateral cortex rises. See
+> [`paper/CLAIM.md`](paper/CLAIM.md) for what is and is not yet supported.
 
 ---
 
