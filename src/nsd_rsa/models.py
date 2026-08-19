@@ -185,3 +185,37 @@ def extract_activations(
             h.remove()
 
     return {k: np.concatenate(v, axis=0) for k, v in collected.items()}
+
+
+def pool_tokens(tokens: torch.Tensor, trim_quantile: float = 0.01) -> dict[str, torch.Tensor]:
+    """Three ways to collapse (batch, tokens, features) into one vector per image.
+
+    A mean is dominated by its largest terms, and trained ViTs put one to two orders of
+    magnitude more norm into a handful of "outlier" tokens that carry global scratch
+    information rather than anything about their own patch (Darcet et al. 2024). Measured
+    on SmolVLM's SigLIP tower, the top 1% of tokens carry up to 15% of all norm mass at
+    mid-depth — and RSA against early and ventral cortex collapses in exactly those layers
+    (r = -0.73 and -0.78 between outlier share and alignment).
+
+    So the pooling choice is not a detail, and we compute all three rather than assume:
+      mean   — what we used originally, dominated by outliers where they exist
+      trim   — mean after dropping the top `trim_quantile` of tokens by norm
+      median — elementwise median, robust but a different statistic entirely
+    """
+    if tokens.ndim != 3:
+        raise ValueError(f"expected (batch, tokens, features), got {tuple(tokens.shape)}")
+    n_tokens = tokens.shape[1]
+    k = max(1, int(round(n_tokens * trim_quantile)))
+    if k >= n_tokens:
+        raise ValueError(f"trim_quantile {trim_quantile} would drop all {n_tokens} tokens")
+
+    tokens = tokens.float()
+    norms = tokens.norm(dim=-1)
+    drop = norms.topk(k, dim=1).indices
+    keep = torch.ones_like(norms, dtype=torch.bool).scatter_(1, drop, False)
+
+    return {
+        "mean": tokens.mean(dim=1),
+        "trim": (tokens * keep.unsqueeze(-1)).sum(dim=1) / keep.sum(dim=1, keepdim=True),
+        "median": tokens.median(dim=1).values,
+    }

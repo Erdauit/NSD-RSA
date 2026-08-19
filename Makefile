@@ -1,4 +1,4 @@
-.PHONY: help setup check clean-cache lint test s0-estimate s1-download s1-sanity s2-stimuli s2-activations s2-check s3-rsa s3-control vlm-smoke vlm-precision vlm-extract vlm-rsa explore s4-analysis s5-encoding figures
+.PHONY: help setup check clean-cache lint test s0-estimate s1-download s1-sanity s2-stimuli s2-activations s2-check s3-rsa s3-control f1-norms f1-robustness vlm-smoke vlm-precision vlm-extract vlm-rsa explore s4-analysis s5-encoding figures
 
 PY := uv run python
 
@@ -78,6 +78,12 @@ s2-check:
 
 s3-rsa:
 	$(PY) scripts/s3_rsa.py --config configs/rsa.yaml
+
+f1-norms:
+	$(PY) scripts/f1_token_norms.py --config configs/models.yaml
+
+f1-robustness:
+	$(PY) scripts/f1_readout_robustness.py --config configs/vlm.yaml
 
 s3-control:
 	$(PY) scripts/s3_lowlevel_control.py --config configs/rsa.yaml
