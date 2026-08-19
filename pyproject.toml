@@ -69,7 +69,18 @@ filterwarnings = [
 
 [tool.uv]
 # torch on macOS arm64 comes from PyPI wheels; no extra index needed.
+# On Windows/Linux PyPI ships CPU-only torch, so the GPU machine (RTX 5070 Ti, sm_120)
+# pulls CUDA 13.0 wheels from the PyTorch index instead.
 package = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu130", marker = "sys_platform == 'win32' or sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cu130", marker = "sys_platform == 'win32' or sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
 
 [dependency-groups]
 dev = [

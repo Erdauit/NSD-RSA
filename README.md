@@ -25,8 +25,9 @@ across model layers and cortical regions?
 > (+0.21), as it must be.
 >
 > *Result under test:* passing through a VLM's language stack, alignment to early visual
-> cortex falls monotonically — **0 of 8 subjects show a rise, in both model scales**
-> (p = 0.008 each) — while alignment to lateral cortex rises. See
+> cortex falls monotonically — **0 of 8 subjects show a rise, at all three model scales**
+> (256M/500M/2.2B, p = 0.008 each) — while alignment to lateral cortex rises (8/8 at the
+> two larger scales). At 2.2B lateral is the *only* region that rises. See
 > [`paper/CLAIM.md`](paper/CLAIM.md) for what is and is not yet supported.
 
 ---
