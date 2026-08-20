@@ -250,10 +250,33 @@ Absolute levels: Qwen2-VL peaks at 0.317 (early, vision tower) and 0.331 (ventra
 ceiling — well above the luminance baseline (0.218), removing the caveat that applied
 to the smallest models.
 
-### 3.6 [F5] Encoding-model check
+### 3.6 The encoding model confirms the loss and reframes the gain
 
-*Slot. Ridge from best encoder layer and best LLM layer into vertices, image-wise CV,
-R²/noise ceiling by region; one table: do encoding conclusions agree with RSA?*
+Voxelwise ridge regression from every LLM layer's image-token readout (5-fold CV over
+images, per-vertex regularisation, out-of-fold R² normalised by the ncsnr-derived noise
+ceiling; median over vertices). Slopes of R²/NC across LLM layers (×100):
+
+| Region | SmolVLM-2.2B | Qwen2-VL-2B |
+|---|---|---|
+| early | −0.07 · 0/8 · p=.008 | −0.27 · 0/8 · p=.008 |
+| midventral | −0.05 · 3/8 | −0.23 · 0/8 · p=.008 |
+| ventral | +0.00 · 4/8 | −0.10 · 0/8 · p=.008 |
+| lateral | −0.01 · 4/8 | −0.06 · 1/8 · p=.016 |
+
+The early-cortex decline is method-independent: it holds in RSA and in encoding, 0/8
+subjects in both models. The lateral rise, by contrast, is a *geometry-level*
+phenomenon: encoding profiles there are flat. The two results are not in tension once
+the decoding control (§3.5/B8) is taken into account — object content is linearly
+present in every LLM layer (category AUC 0.96 throughout), so a reweighted linear
+readout can reach lateral-relevant structure from any depth, and encoding, which fits
+such a readout per vertex, stays flat. RSA applies no reweighting: it measures which
+distinctions the representation natively emphasises. Together the three measurements
+triangulate a specific mechanism: the language stack genuinely *deletes* low-level
+structure (early falls under RSA, encoding, and direct decoding alike), while
+high-level object structure is retained in linearly accessible form throughout and
+comes to dominate the representation's native geometry. "Gaining lateral alignment"
+is a statement about emphasis, not about newly created information — and the paper's
+claim should be read, precisely, as a claim about representational geometry.
 
 ---
 
