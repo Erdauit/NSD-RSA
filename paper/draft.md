@@ -268,22 +268,58 @@ lateral alignment increases through the same layers in 8/8 subjects. [F5/B8: lin
 decodability of low- vs high-level image properties per LLM layer.]
 
 **Not just object nouns?** Conwell et al. (2023) find caption-based language-model
-alignment with high-level visual cortex is largely carried by object content. If the
-lateral rise survives partialling out a COCO object-category RDM, it reflects more than
-a coarse object inventory. [B9 slot — analysis planned.]
+alignment with high-level visual cortex is largely carried by object content. We built a
+crop-aware COCO object-category RDM (an object counts only if its bounding-box centre
+falls inside the NSD crop; 80 categories, Jaccard distance, plus an area-weighted
+variant). The category RDM is itself selectively lateral: it reaches 0.365 of ceiling in
+lateral cortex against ≈0 everywhere else — the object inventory genuinely lives in the
+lateral stream's geometry, which makes this the right control to run. Partialling it out
+of the model–brain relationship leaves the early-cortex fall untouched in every model
+(0/8, p = .008), and the lateral rise survives in the three models where it was strong
+(SmolVLM-500M +0.48, SmolVLM-2.2B +0.69 — *larger* than the plain +0.61, the category
+component was partly masking the effect — and Qwen2-VL +0.44; all 8/8, p = .008). In the
+two weakest models (SmolVLM-256M, LLaVA-OneVision-0.5B) the residual rise keeps its
+direction but loses significance (p = .15, .11). The lateral gain of the stronger models
+is therefore not reducible to a coarse object inventory; a caption-embedding partial —
+the richer version of the objection — is left for future work.
+
+**Degradation or retargeting, tested directly.** Linear decoding from every LLM layer's
+image-token readout: COCO categories in the crop decode nearly perfectly from *every*
+layer, including the last (mean AUC 0.96 → 0.97 across depth in both 2B models), while
+low-level structure decays monotonically (luminance R² 0.37 → 0.26, Gabor-energy PCs
+0.31 → 0.19 in Qwen2-VL). Pure information loss predicts joint decline; what we observe
+is selective retention of object content with progressive shedding of low-level
+structure — the decoding-level signature of retargeting, independent of the RSA result
+it corroborates.
 
 **Relation to language-space convergence.** Venhoff et al. (2025) locate visual-to-
 language feature convergence at mid-to-late LLM depth. [B10 slot: compare our shift's
 depth profile with theirs; if they coincide, discuss the non-neural reading explicitly.]
 
-**Why lateral?** The lateral stream is associated with dynamic, social and embodied
-content — actions, bodies, interactions (Pitcher & Ungerleider 2020; McMahon et al.
-2023/2024; Weiner & Grill-Spector; Landsiedel et al. 2022). Language is a compressed
-description of *what matters about a scene to agents* — arguably closer to the lateral
-stream's coding priorities than to ventral fine-grained object identity. *(Interpretive,
-correlational — keep modest.)* Notably, lateral cortex is also where our strongest
-absolute alignment lives (0.478 at encoder mid-depth for 2.2B), an unexplained
-observation in its own right.
+**Why lateral?** The lateral visual pathway has been argued to constitute a third
+processing stream, distinct from the classic ventral "what" and dorsal "where" routes,
+specialised for the perception of other agents: faces and bodies in motion, actions, and
+social interactions (Pitcher & Ungerleider 2020). Within it, responses are organised
+hierarchically — from low-level motion-sensitive territory (MT/EVC border) through
+body- and object-selective areas (EBA/LOC) to superior temporal regions coding social
+interaction as such (McMahon, Bonner & Isik 2023; McMahon & Isik 2024). Lateral
+occipitotemporal cortex represents action categories generalising across the agent
+performing them (Walbrin & Koldewyn 2019; Landsiedel et al. 2022), and recent work finds
+its scene responses well described by verb-like, relational descriptors rather than
+object inventories (Küçük et al. 2024). If language is, functionally, a compressed
+description of *what matters about a scene to agents* — who is doing what to whom — then
+a next-token objective should reshape visual tokens toward exactly these relational,
+agent-centred distinctions, more than toward the fine-grained object identity of the
+ventral stream or the local contrast structure of V1–V3. That is what we observe: the
+language stack sheds early- and ventral-stream geometry while gaining lateral-stream
+geometry, in every family tested. The reading is interpretive and correlational — we
+measure geometric correspondence, not mechanism — but it makes a testable prediction:
+the gain should be carried disproportionately by images containing agents and
+interactions, and should survive partialling out object-category structure (see the
+planned Conwell-style control). Notably, lateral cortex is also where the strongest
+absolute alignment in this study lives (0.478 of ceiling at encoder mid-depth for
+SmolVLM-2.2B; 0.447 at the *last* LLM layer of Qwen2-VL), an observation without a
+satisfying explanation yet.
 
 **Methodological contributions worth stating plainly.** (i) Reduced precision distorts
 RDMs by the size of typical between-model effects, on two hardware backends; fp32 is a

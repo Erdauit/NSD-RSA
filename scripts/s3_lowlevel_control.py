@@ -10,10 +10,15 @@ early cortex is no better than what raw brightness achieves, the score says noth
 representation — it says the model, like the brain, is sensitive to how bright a picture
 is. Any RSA claim has to clear this bar, and a reviewer will ask for it.
 
-Three baselines, in increasing triviality:
-  pixels_gray     — downsampled greyscale image, i.e. raw retinal-ish input
+Baselines, roughly in decreasing triviality:
   mean_luminance  — ONE number per image: its average brightness
   rms_contrast    — ONE number per image: its standard deviation
+  pixels_gray     — downsampled greyscale image, i.e. raw retinal-ish input
+  canny_edges     — pooled density of Canny edges: where the contours are
+  gabor_energy    — energy of a Gabor filter bank (4 spatial frequencies x 6
+                    orientations, pooled on a grid). This is not arbitrary: oriented
+                    Gabor energy is the textbook model of V1 simple/complex cells, so
+                    it is the natural hand-crafted competitor for `early`.
 
 Usage: make s3-control
 """
@@ -47,16 +52,22 @@ def scalar_rdm(values: np.ndarray) -> np.ndarray:
     return squareform(full, checks=False)
 
 
+from nsd_rsa.lowlevel import edge_features, gabor_features  # noqa: E402
+
+
 def build_control_bank(images_path: Path, images: np.ndarray) -> RDMBank:
     im = np.load(images_path, mmap_mode="r")[images].astype(np.float32)
     gray = im.mean(axis=3)
     downsampled = gray[:, ::8, ::8].reshape(len(images), -1).astype(np.float64)
+    print("  computing edge and Gabor features")
     return RDMBank(
-        ["pixels_gray", "mean_luminance", "rms_contrast"],
+        ["pixels_gray", "mean_luminance", "rms_contrast", "canny_edges", "gabor_energy"],
         np.vstack([
             compute_rdm(downsampled),
             scalar_rdm(gray.mean(axis=(1, 2))),
             scalar_rdm(gray.std(axis=(1, 2))),
+            compute_rdm(edge_features(gray)),
+            compute_rdm(gabor_features(gray)),
         ]),
     )
 
