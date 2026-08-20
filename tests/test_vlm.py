@@ -15,7 +15,14 @@ import numpy as np
 import pytest
 import torch
 
-from nsd_rsa.vlm import PROMPTS, StackReadouts, VLMSpec, image_token_mask, locate_stack
+from nsd_rsa.vlm import (
+    PROMPTS,
+    StackReadouts,
+    VLMSpec,
+    _move_prompt_before_image,
+    image_token_mask,
+    locate_stack,
+)
 
 # --- prompt conditions ---------------------------------------------------------
 
@@ -92,11 +99,67 @@ def test_locate_stack_finds_blocks_and_counts_layers():
     assert found["connector"] is not None
 
 
+def _fake_qwen2vl():
+    """Qwen2-VL layout: .model.visual (blocks + merger inside) and .model.language_model."""
+    visual = _Fake(
+        blocks=torch.nn.ModuleList([torch.nn.Linear(2, 2) for _ in range(5)]),
+        merger=torch.nn.Linear(2, 2),
+    )
+    text = _Fake(layers=torch.nn.ModuleList([torch.nn.Linear(2, 2) for _ in range(7)]))
+    return _Fake(model=_Fake(visual=visual, language_model=text))
+
+
+def _fake_llava():
+    """LLaVA layout: vision_tower / multi_modal_projector / language_model."""
+    vision = _Fake(encoder=torch.nn.ModuleList([torch.nn.Linear(2, 2) for _ in range(3)]))
+    text = _Fake(layers=torch.nn.ModuleList([torch.nn.Linear(2, 2) for _ in range(5)]))
+    return _Fake(model=_Fake(vision_tower=vision, multi_modal_projector=torch.nn.Linear(2, 2),
+                             language_model=text))
+
+
+def test_locate_stack_finds_qwen2vl_layout():
+    """The projector lives inside the vision module (PatchMerger), not beside it."""
+    found = locate_stack(_fake_qwen2vl())
+    assert len(found["vision_blocks"]) == 5
+    assert found["n_llm_layers"] == 7
+    assert isinstance(found["connector"], torch.nn.Linear)
+
+
+def test_locate_stack_finds_llava_layout():
+    found = locate_stack(_fake_llava())
+    assert len(found["vision_blocks"]) == 3
+    assert found["n_llm_layers"] == 5
+    assert found["connector"] is not None
+
+
 def test_locate_stack_refuses_unknown_layout():
     """Silently missing the vision tower would leave us analysing only the language half
     while believing the whole stack was covered."""
     with pytest.raises(AttributeError, match="vision_model"):
         locate_stack(_fake_model(with_vision=False))
+
+
+# --- prompt-before-image reordering -------------------------------------------
+
+
+def test_reorder_moves_prompt_ahead_of_hardcoded_image():
+    """LLaVA-OneVision's template pins <image> first regardless of content order; the
+    rendered string must be repaired or 'before' silently becomes 'after'."""
+    chat = "<|im_start|>user <image>\nDescribe the objects.<|im_end|><|im_start|>assistant\n"
+    fixed = _move_prompt_before_image(chat, "Describe the objects.")
+    assert fixed.index("Describe the objects.") < fixed.index("<image>")
+    assert fixed.count("Describe the objects.") == 1
+    assert fixed.count("<image>") == 1
+
+
+def test_reorder_is_noop_when_template_honours_order():
+    chat = "<|im_start|>user Describe.\n<image><|im_end|>"
+    assert _move_prompt_before_image(chat, "Describe.") == chat
+
+
+def test_reorder_refuses_without_known_placeholder():
+    with pytest.raises(RuntimeError, match="placeholder"):
+        _move_prompt_before_image("user says things", "says")
 
 
 # --- image token location ------------------------------------------------------

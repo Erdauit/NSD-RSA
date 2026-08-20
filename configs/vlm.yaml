@@ -48,6 +48,17 @@ models:
     hf_name: HuggingFaceTB/SmolVLM-Instruct
     note: "2.25B. 25 LLM layers, width 2048. Costs ~90% of the compute budget."
 
+  # F4 — other families. Does the SmolVLM stack profile generalise beyond one lineage?
+  # Both run in fp32: the precision problem reproduces on CUDA (bf16 agreement 0.962),
+  # which rules out 7B-class models on a 16 GB card.
+  - name: qwen2vl_2b
+    hf_name: Qwen/Qwen2-VL-2B-Instruct
+    note: "F4: different family. Native-resolution ViT (32 blocks, merger projector) -> Qwen2 LLM (28 layers). Never tiles."
+
+  - name: llava_ov_05b
+    hf_name: llava-hf/llava-onevision-qwen2-0.5b-ov-hf
+    note: "F4: LLaVA architecture. SigLIP (26 blocks) -> MLP projector -> Qwen2 LLM (24 layers). Anyres tiling disabled."
+
 # Task conditions. Human visual cortex is modulated by task; a VLM lets us set the task
 # literally. `none` is the control — the image with no question attached.
 prompts: [none, objects, spatial, mood]

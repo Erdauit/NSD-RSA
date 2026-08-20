@@ -83,20 +83,46 @@ class StackReadouts:
 def build_vlm(spec: VLMSpec, device: str, tiling: bool = False):
     """Load a VLM in float32 with tiling disabled.
 
+    Tiling is architecture-specific: Idefics3/SmolVLM splits via `do_image_splitting`,
+    the LLaVA family via `image_grid_pinpoints` (anyres crops). Both are disabled so the
+    model sees the whole visual field at once, like cortex does. Qwen2-VL never tiles —
+    it processes the image at native resolution in one pass.
+
     NOTE: `device_map=` segfaults (SIGSEGV) under transformers 5.15 + torch 2.13 on MPS,
     so the model is loaded on CPU and moved afterwards. Equivalent, and stable.
     """
     from transformers import AutoModelForImageTextToText, AutoProcessor
 
     processor = AutoProcessor.from_pretrained(spec.hf_name)
-    if hasattr(processor, "image_processor"):
-        processor.image_processor.do_image_splitting = tiling
+    ip = getattr(processor, "image_processor", None)
+    if ip is not None and hasattr(ip, "do_image_splitting"):
+        ip.do_image_splitting = tiling
 
     model = AutoModelForImageTextToText.from_pretrained(spec.hf_name, dtype=torch.float32)
+
+    if ip is not None and not tiling and getattr(ip, "image_grid_pinpoints", None):
+        # A single pinpoint equal to the base size means one whole-image crop. The
+        # modeling code recomputes patch counts from *its own* config copy, so processor
+        # and model must agree or forward() fails on a split-size mismatch.
+        base = ip.size
+        pin = [[base["height"], base["width"]]] if isinstance(base, dict) \
+            else [[base.height, base.width]]
+        ip.image_grid_pinpoints = pin
+        if hasattr(model.config, "image_grid_pinpoints"):
+            model.config.image_grid_pinpoints = pin
     model.eval()
     model = model.to(device)
     spec.n_params = sum(p.numel() for p in model.parameters()) / 1e9
     return model, processor
+
+
+# Known (vision, connector, text) attribute layouts, tried in order. The connector may
+# live inside the vision module (Qwen2-VL's PatchMerger), marked by the "vision:" prefix.
+_STACK_LAYOUTS: tuple[tuple[str, str | None, str], ...] = (
+    ("vision_model", "connector", "text_model"),                   # Idefics3 / SmolVLM
+    ("visual", "vision:merger", "language_model"),                 # Qwen2-VL
+    ("vision_tower", "multi_modal_projector", "language_model"),   # LLaVA family
+)
 
 
 def locate_stack(model) -> dict[str, Any]:
@@ -106,13 +132,24 @@ def locate_stack(model) -> dict[str, Any]:
     analysing only the language half while believing we covered the stack.
     """
     inner = getattr(model, "model", model)
-    vision = getattr(inner, "vision_model", None)
-    connector = getattr(inner, "connector", None)
-    text = getattr(inner, "text_model", None)
+    vision = connector = text = None
+    for v_attr, c_attr, t_attr in _STACK_LAYOUTS:
+        vision = getattr(inner, v_attr, None)
+        text = getattr(inner, t_attr, None)
+        if vision is None or text is None:
+            continue
+        if c_attr is None:
+            connector = None
+        elif c_attr.startswith("vision:"):
+            connector = getattr(vision, c_attr.split(":", 1)[1], None)
+        else:
+            connector = getattr(inner, c_attr, None)
+        break
 
     if vision is None or text is None:
         raise AttributeError(
-            f"{type(model).__name__}: expected .model.vision_model and .model.text_model. "
+            f"{type(model).__name__}: none of the known layouts matched "
+            f"{[la[0] for la in _STACK_LAYOUTS]}. "
             "This model's layout differs; add a mapping rather than guessing."
         )
 
@@ -163,6 +200,47 @@ def image_token_mask(input_ids: torch.Tensor, model, processor) -> torch.Tensor:
     )
 
 
+# Image-placeholder strings as they appear in rendered chat templates.
+_IMAGE_PLACEHOLDERS = ("<image>", "<|vision_start|>", "<image_soft_token>")
+
+
+def _move_prompt_before_image(chat: str, prompt: str) -> str:
+    """Rearrange a rendered chat string so the prompt text precedes the image span.
+
+    Some templates (LLaVA-OneVision) hardcode the image placeholder first and silently
+    ignore the order of the content list — which makes `prompt_position="before"` a lie
+    and re-creates the causal-attention null we designed against. Rendered templates
+    embed the prompt verbatim, so the fix is a string move; the per-family bitwise check
+    (scripts/f4_condition_check.py) is what proves it worked.
+    """
+    marker = next((m for m in _IMAGE_PLACEHOLDERS if m in chat), None)
+    if marker is None:
+        raise RuntimeError("no known image placeholder in rendered chat; cannot reorder")
+    i_img, i_txt = chat.index(marker), chat.find(prompt)
+    if i_txt == -1:
+        raise RuntimeError("prompt text not found verbatim in rendered chat")
+    if i_txt < i_img:
+        return chat  # template already honoured the order
+    return chat.replace(prompt, "", 1).replace(marker, prompt + "\n" + marker, 1)
+
+
+def build_chat(processor, prompt: str, prompt_position: str) -> str:
+    """Render the chat template, enforcing that `prompt_position` is actually true."""
+    if prompt_position not in ("before", "after"):
+        raise ValueError(f"prompt_position must be 'before' or 'after', got {prompt_position!r}")
+    content: list[dict] = [{"type": "image"}]
+    if prompt:
+        text = {"type": "text", "text": prompt}
+        content = [text, {"type": "image"}] if prompt_position == "before" else [
+            {"type": "image"}, text
+        ]
+    chat = processor.apply_chat_template([{"role": "user", "content": content}],
+                                         add_generation_prompt=True)
+    if prompt and prompt_position == "before":
+        chat = _move_prompt_before_image(chat, prompt)
+    return chat
+
+
 @torch.no_grad()
 def extract_stack(
     model,
@@ -194,16 +272,7 @@ def extract_stack(
     if stack["connector"] is not None:
         handles.append(stack["connector"].register_forward_hook(hook("projector")))
 
-    if prompt_position not in ("before", "after"):
-        raise ValueError(f"prompt_position must be 'before' or 'after', got {prompt_position!r}")
-    content: list[dict] = [{"type": "image"}]
-    if prompt:
-        text = {"type": "text", "text": prompt}
-        content = [text, {"type": "image"}] if prompt_position == "before" else [
-            {"type": "image"}, text
-        ]
-    chat = processor.apply_chat_template([{"role": "user", "content": content}],
-                                         add_generation_prompt=True)
+    chat = build_chat(processor, prompt, prompt_position)
 
     out = StackReadouts()
     try:
