@@ -16,19 +16,22 @@ across model layers and cortical regions?
 сделано, за пять минут. Запуск на машине с видеокартой —
 [`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md). План текущей фазы — [`PHASE2.md`](PHASE2.md).
 
-> Status: **parts A and B computed; generalisation across model families in progress.**
-> All 8 subjects, 515 stimuli, 7 cortical regions, 5 vision encoders + 2 VLMs.
+> Status: **core effect replicated across three VLM families.**
+> All 8 subjects, 515 stimuli, 7 cortical regions, 5 vision encoders + 5 VLMs
+> (SmolVLM 256M/500M/2.2B, Qwen2-VL-2B, LLaVA-OneVision-0.5B).
 >
 > *Pipeline validation:* our per-vertex split-half reliability agrees with NSD's own `ncsnr`
 > at **r = 0.968** across 67,696 vertices; the layer-to-region hierarchy replicates in all
 > 5 encoders; reliability is higher in early visual cortex (+0.40) than anterior ventral
 > (+0.21), as it must be.
 >
-> *Result under test:* passing through a VLM's language stack, alignment to early visual
-> cortex falls monotonically — **0 of 8 subjects show a rise, at all three model scales**
-> (256M/500M/2.2B, p = 0.008 each) — while alignment to lateral cortex rises (8/8 at the
-> two larger scales). At 2.2B lateral is the *only* region that rises. See
-> [`paper/CLAIM.md`](paper/CLAIM.md) for what is and is not yet supported.
+> *Core result:* passing through a VLM's language stack, alignment to early visual
+> cortex falls monotonically — **0 of 8 subjects show a rise, in all five models of all
+> three families** (p = 0.008 each) — while alignment to the lateral stream rises
+> (6/8–8/8 per model). Across families, lateral is the only region whose alignment
+> grows through the language stack. See [`paper/CLAIM.md`](paper/CLAIM.md) for the
+> precise claim and [`figures/f4_family_slopes.png`](figures/f4_family_slopes.png) for
+> the one-figure summary.
 
 ---
 

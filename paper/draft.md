@@ -23,7 +23,9 @@ early visual cortex falls monotonically across the language stack in every subje
 500M, 2.2B), while alignment to the lateral visual stream rises (8/8 subjects at the two
 larger scales). The ventral-stream trajectory reverses sign with model scale (slope
 +0.21 → +0.04 → −0.39 ×100), cautioning against conclusions drawn from any single model.
-[F4: The effect holds / does not hold in Qwen2-VL and LLaVA-OneVision families.]
+The core pattern generalises across architecturally distinct families: in Qwen2-VL-2B
+and LLaVA-OneVision-0.5B, early-cortex alignment likewise falls in 0/8 subjects and
+lateral-stream alignment rises (8/8 and 7/8) — five models, three families in total.
 Because lateral alignment *rises* while early alignment falls, the drift cannot be pure
 degradation of visual information; the language stack selectively reshapes visual
 geometry toward that of the lateral stream. [F5: encoding-model agreement sentence.]
@@ -66,7 +68,10 @@ lateral stream rises concurrently (6/8, 8/8, 8/8 across scales); at the largest 
 is the *only* region whose alignment rises. (iii) The ventral-stream trajectory flips
 sign with scale (+0.21 → +0.04 → −0.39), i.e. the smallest model behaves qualitatively
 unlike the largest — a warning for single-model claims about "brain-like" VLMs.
-[F4: generalisation across families sentence.] A rise cannot be produced by pure loss of
+The pattern is family-general: in two further families (Qwen2-VL, LLaVA-OneVision) the
+early-cortex fall again holds in 0/8 subjects and the lateral rise in 8/8 and 7/8, so
+across all five models the only region whose alignment survives — and grows — through
+the language stack is the lateral stream. A rise cannot be produced by pure loss of
 visual information, so the language stack is not merely degrading vision; it reshapes
 visual geometry, selectively, toward the lateral stream — the cortical territory
 associated with actions, bodies, and social content.
@@ -216,11 +221,34 @@ are *smaller* than 500M's), and is absent in lateral cortex at the smaller scale
 inference time, instructions barely reshape visual geometry in models of this class — a
 controlled negative result given the design.
 
-### 3.5 [F4] Generalisation across families
+### 3.5 The effect generalises across model families
 
-*Slot. Same protocol on Qwen2-VL-2B and LLaVA-OneVision-0.5B: slope table by region ×
-family, per-subject signs; summary figure early/lateral slopes, all families and scales,
-dots = subjects. Verdict sentence: does 0/8 on early hold outside SmolVLM?*
+Same protocol on two architecturally distinct families — Qwen2-VL-2B (native-resolution
+ViT trained end-to-end, merger projector, Qwen2 LLM) and LLaVA-OneVision-0.5B (frozen-
+recipe SigLIP, MLP projector, Qwen2 LLM). Slopes across LLM layers (×100, `trim`):
+
+| Region | Qwen2-VL-2B | LLaVA-OneVision-0.5B |
+|---|---|---|
+| early | −0.90 · 0/8 · p=.008 | −0.30 · 0/8 · p=.008 |
+| midventral | −0.88 · 0/8 · p=.008 | −0.34 · 0/8 · p=.008 |
+| ventral | −0.54 · 0/8 · p=.008 | −0.28 · 0/8 · p=.008 |
+| lateral | +0.47 · 8/8 · p=.008 | +0.16 · 7/8 · p=.039 |
+
+Early-cortex alignment falls through the language stack in 0/8 subjects in every model
+of every family tested — five models, three families. Lateral-stream alignment rises in
+both new families; in Qwen2-VL its peak (0.447 of ceiling) sits at the *last* LLM layer.
+Robust to all three token poolings in both models. [Figure 4: f4_family_slopes]
+
+Across families, the ventral pattern sharpens the within-family scale trend of §3.3:
+in both new families ventral alignment falls (0/8) — including LLaVA-OneVision at 0.5B,
+a scale at which SmolVLM still shows a ventral rise. The positive ventral slope is a
+peculiarity of the smallest SmolVLM rungs, not a property of small VLMs in general. The
+family-general pattern is: through the language stack, alignment falls in every measured
+region *except* the lateral stream.
+
+Absolute levels: Qwen2-VL peaks at 0.317 (early, vision tower) and 0.331 (ventral) of
+ceiling — well above the luminance baseline (0.218), removing the caveat that applied
+to the smallest models.
 
 ### 3.6 [F5] Encoding-model check
 
@@ -267,9 +295,9 @@ defensible readout (`trim`).
 
 **Limitations.** One dataset; 515 images; 8 subjects (though NSD's per-subject data
 depth partially compensates); correlational geometry comparisons only — no causal claims
-about the brain "working like" a VLM; [F4 pending / families covered: SmolVLM lineage
-plus Qwen2-VL and LLaVA-OneVision at ~2B and 0.5B scales — no 7B+ models, excluded by
-the fp32 validity requirement on 16 GB hardware]; absolute alignment levels in early
+about the brain "working like" a VLM; families covered are SmolVLM (three scales),
+Qwen2-VL-2B and LLaVA-OneVision-0.5B — no 7B+ models, excluded by the fp32 validity
+requirement on 16 GB hardware; absolute alignment levels in early
 cortex sit near a trivial luminance baseline at small scales, and analyses there are
 interpreted as trajectories, not levels.
 

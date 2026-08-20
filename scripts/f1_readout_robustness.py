@@ -178,6 +178,10 @@ def main() -> int:
             results[name][pool] = entry
 
     out = paths["cache"] / "f1_readout_robustness.json"
+    # Merge, don't clobber: partial runs (--models X) must not erase other models' rows.
+    merged = json.loads(out.read_text()) if out.exists() else {}
+    merged.update(results)
+    results = merged
     out.write_text(json.dumps(results, indent=1))
 
     print("\n" + "=" * 88)
