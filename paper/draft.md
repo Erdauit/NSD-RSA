@@ -337,9 +337,15 @@ ventral stream or the local contrast structure of V1–V3. That is what we obser
 language stack sheds early- and ventral-stream geometry while gaining lateral-stream
 geometry, in every family tested. The reading is interpretive and correlational — we
 measure geometric correspondence, not mechanism — but it makes a testable prediction:
-the gain should be carried disproportionately by images containing agents and
-interactions, and should survive partialling out object-category structure (see the
-planned Conwell-style control). Notably, lateral cortex is also where the strongest
+the gain should be carried disproportionately by images containing agents. We tested
+this directly: recomputing the LLM-layer slopes on stimulus subsets, the lateral rise
+holds on person-containing images (+0.23 ×100, 7/8 subjects, p = .039, n = 213) and
+collapses to non-significance on images without people (+0.08, 5/8, p = .55, n = 302) —
+despite the person subset being the *smaller* of the two — while the early-cortex fall
+is content-independent (0/8, p = .008 in both subsets). A post-hoc, single-category
+split on the same data, so it enters as corroboration rather than a separate claim; it
+also survives partialling out object-category structure (§3.5). Notably, lateral cortex
+is also where the strongest
 absolute alignment in this study lives (0.478 of ceiling at encoder mid-depth for
 SmolVLM-2.2B; 0.447 at the *last* LLM layer of Qwen2-VL), an observation without a
 satisfying explanation yet.
