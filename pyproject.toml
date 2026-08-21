@@ -33,6 +33,7 @@ dependencies = [
     "transformers>=5.15.0",
     "accelerate>=1.14.0",
     "scikit-image>=0.26.0",
+    "plenoptic>=2.1.0",
 ]
 
 [project.optional-dependencies]

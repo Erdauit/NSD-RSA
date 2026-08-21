@@ -484,6 +484,15 @@ wheels = [
 ]
 
 [[package]]
+name = "einops"
+version = "0.8.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2c/77/850bef8d72ffb9219f0b1aac23fbc1bf7d038ee6ea666f331fa273031aa2/einops-0.8.2.tar.gz", hash = "sha256:609da665570e5e265e27283aab09e7f279ade90c4f01bcfca111f3d3e13f2827", size = 56261, upload-time = "2026-01-26T04:13:17.638Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2a/09/f8d8f8f31e4483c10a906437b4ce31bdf3d6d417b73fe33f1a8b59e34228/einops-0.8.2-py3-none-any.whl", hash = "sha256:54058201ac7087911181bfec4af6091bb59380360f069276601256a76af08193", size = 65638, upload-time = "2026-01-26T04:13:18.546Z" },
+]
+
+[[package]]
 name = "executing"
 version = "2.2.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1431,6 +1440,7 @@ dependencies = [
     { name = "open-clip-torch" },
     { name = "pandas" },
     { name = "pillow" },
+    { name = "plenoptic" },
     { name = "pyyaml" },
     { name = "scikit-image" },
     { name = "scikit-learn" },
@@ -1475,6 +1485,7 @@ requires-dist = [
     { name = "open-clip-torch", specifier = ">=2.24" },
     { name = "pandas", specifier = ">=2.1" },
     { name = "pillow", specifier = ">=10.2" },
+    { name = "plenoptic", specifier = ">=2.1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
@@ -1819,12 +1830,51 @@ wheels = [
 ]
 
 [[package]]
+name = "plenoptic"
+version = "2.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "einops" },
+    { name = "imageio" },
+    { name = "importlib-resources" },
+    { name = "lazy-loader" },
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pooch" },
+    { name = "pyrtools" },
+    { name = "scikit-image" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "torch", version = "2.13.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux' and sys_platform != 'win32'" },
+    { name = "torch", version = "2.13.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/02/1e/dbaa4592c0cbfa72eecb230ffec0a67117a0b3bcbf0b081f537c1feafcd9/plenoptic-2.1.0.tar.gz", hash = "sha256:9039b5a5e4161662deebadce9fdb7f7f119c97df07abfd9b51715b3fdc7b25fb", size = 5472629, upload-time = "2026-07-27T17:59:27.451Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/92/f1/f83d7e0439a2df6f73b253d98895c8b69ef734b270822f55824163e8d07e/plenoptic-2.1.0-py3-none-any.whl", hash = "sha256:2ebf873e7d2b242acd04023973966f31c108b797a55f587e65b00afe642ba655", size = 877239, upload-time = "2026-07-27T17:59:25.61Z" },
+]
+
+[[package]]
 name = "pluggy"
 version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
+]
+
+[[package]]
+name = "pooch"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+    { name = "platformdirs" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/83/43/85ef45e8b36c6a48546af7b266592dc32d7f67837a6514d111bced6d7d75/pooch-1.9.0.tar.gz", hash = "sha256:de46729579b9857ffd3e741987a2f6d5e0e03219892c167c6578c0091fb511ed", size = 61788, upload-time = "2026-01-30T19:15:09.649Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2a/2d/d4bf65e47cea8ff2c794a600c4fd1273a7902f268757c531e0ee9f18aa58/pooch-1.9.0-py3-none-any.whl", hash = "sha256:f265597baa9f760d25ceb29d0beb8186c243d6607b0f60b83ecf14078dbc703b", size = 67175, upload-time = "2026-01-30T19:15:08.36Z" },
 ]
 
 [[package]]
@@ -1916,6 +1966,26 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f3/91/9c6ee907786a473bf81c5f53cf703ba0957b23ab84c264080fb5a450416f/pyparsing-3.3.2.tar.gz", hash = "sha256:c777f4d763f140633dcb6d8a3eda953bf7a214dc4eff598413c070bcdc117cbc", size = 6851574, upload-time = "2026-01-21T03:57:59.36Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/10/bd/c038d7cc38edc1aa5bf91ab8068b63d4308c66c4c8bb3cbba7dfbc049f9c/pyparsing-3.3.2-py3-none-any.whl", hash = "sha256:850ba148bd908d7e2411587e247a1e4f0327839c40e2e5e6d05a007ecc69911d", size = 122781, upload-time = "2026-01-21T03:57:55.912Z" },
+]
+
+[[package]]
+name = "pyrtools"
+version = "1.0.10"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "requests" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f2/22/c107a9a7b0f177f7e259cee11c3f3cc72c72f2cde7f6751f14e68ca5eba2/pyrtools-1.0.10.tar.gz", hash = "sha256:d553769201e1fb338564ecf43568ead9ad8a7b3fc1ed741fa0039f569d1ea80b", size = 7458184, upload-time = "2025-10-13T15:28:29.75Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9f/31/341de4c97e8fba227b1ac582e79d846cd08d366ca2375982527d3a8a32ce/pyrtools-1.0.10-py3-none-macosx_10_9_x86_64.whl", hash = "sha256:bdfda128eb6cd8dc60aca7c0ea3cffc6ef910bf98f10fde00599676360fa8495", size = 95393, upload-time = "2025-10-13T15:28:25.731Z" },
+    { url = "https://files.pythonhosted.org/packages/fd/95/535f50e66eef7a4b2f9973e255483f7d337f8dbc18a4ee271050a52bdac8/pyrtools-1.0.10-py3-none-macosx_11_0_arm64.whl", hash = "sha256:11eb03b4136cccfa8ee391d6738821716f286f098cdf2cae54202b80ca219dbb", size = 93193, upload-time = "2025-10-13T15:28:26.799Z" },
+    { url = "https://files.pythonhosted.org/packages/83/91/a449a051306882172b763fa74056f23f580ab5ce221a53a79b9009191fb8/pyrtools-1.0.10-py3-none-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:41d1b28b4e151c599ae3457db5dbff5f0a6954f447d83b209e23ef2d5a7cbc2f", size = 116529, upload-time = "2025-10-13T15:28:27.818Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/87/3063c9df011f39ce5bb45f171ff0952dd0d9839625c5ae4b99d0377259c2/pyrtools-1.0.10-py3-none-win_amd64.whl", hash = "sha256:dbd3eb16c21fe82735e43bb2406dfe541c22c40123e1499bb35d6b59ebf645e9", size = 100802, upload-time = "2025-10-13T15:28:28.592Z" },
 ]
 
 [[package]]
