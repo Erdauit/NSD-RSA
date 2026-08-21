@@ -17,7 +17,7 @@
 | objects | число инстансов, категорий; покрытие площади; средний аспект bbox; площадь людей | COCO-аннотации; Yargholi & De Beeck 2022 (аспект vs категория) | объектная организация OTC |
 | color | 8 hue-бинов (взвешенных S·V); насыщенность; тёплая доля; тёплая доля объектов vs фона (по bbox) | Pennock et al. 2021/2022/2025 (на NSD) | цветосмещённые вентральные зоны; еда-тёплые-объекты |
 
-## Ярус 2 — требует внешних норм (TODO, не реализовано)
+## Ярус 2 — внешние нормы (реализовано: THINGSplus, ResMem — см. scripts/f8_tier2_norms.py; THINGSplus TSV скачиваются с osf.io/jum2f в data/meta/thingsplus/)
 
 - **THINGSplus** (Stoinski et al. 2023, Behav Res Methods): animacy, real-world size,
   naturalness, typicality на уровне концептов → маппинг 80 категорий COCO на THINGS.

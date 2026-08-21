@@ -1442,6 +1442,7 @@ dependencies = [
     { name = "pillow" },
     { name = "plenoptic" },
     { name = "pyyaml" },
+    { name = "resmem" },
     { name = "scikit-image" },
     { name = "scikit-learn" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -1488,6 +1489,7 @@ requires-dist = [
     { name = "plenoptic", specifier = ">=2.1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "resmem", specifier = ">=1.1.6" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.4" },
     { name = "scikit-image", specifier = ">=0.26.0" },
     { name = "scikit-learn", specifier = ">=1.4" },
@@ -2167,6 +2169,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz", hash = "sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed", size = 142856, upload-time = "2026-05-14T19:25:27.735Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl", hash = "sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0", size = 73075, upload-time = "2026-05-14T19:25:26.443Z" },
+]
+
+[[package]]
+name = "resmem"
+version = "1.1.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "torch", version = "2.13.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux' and sys_platform != 'win32'" },
+    { name = "torch", version = "2.13.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+    { name = "torchvision", version = "0.28.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux' and sys_platform != 'win32'" },
+    { name = "torchvision", version = "0.28.0+cu130", source = { registry = "https://download.pytorch.org/whl/cu130" }, marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f5/03/a07080aafc86098c706da98a5da2a0144ea591b8876cc80e1cec66b125aa/resmem-1.1.6.tar.gz", hash = "sha256:405caf20b05e2bf86c5d06cad7523f255f07f1f1e161ae9c440fcad2ffd68c04", size = 489125267, upload-time = "2022-08-16T18:52:52.646Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/03/2d/4f163c5ff98d1557191ff3d09d2ca843f7b9a75d8939a7cbb14670d2a4ac/resmem-1.1.6-py3-none-any.whl", hash = "sha256:2ed9d656280761215cde8f94a58197cdca523ccacb36fbd949edbea7a62c5572", size = 489123294, upload-time = "2022-08-16T18:52:09.14Z" },
 ]
 
 [[package]]
